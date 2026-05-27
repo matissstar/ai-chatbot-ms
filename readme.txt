@@ -6,19 +6,18 @@ Tested up to: 6.7
 Requires PHP: 7.4
 Stable tag: 2.0.0
 License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Smart product search chatbot for WooCommerce — keyword & fuzzy matching, voice input, product comparison, and analytics.
 
 == Description ==
 
-Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce stores. It helps your customers find products instantly using smart keyword and fuzzy search — all without external API calls or data leaving your server.
+Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce stores. It helps your customers find products instantly using smart keyword and fuzzy search, with all core chatbot processing performed locally on your server.
 
 **Key Features:**
 
 * **Smart Product Search** — Keyword and fuzzy matching across product titles, descriptions, categories, tags, SKUs, and custom fields.
 * **Product Comparison** — Side-by-side comparison of multiple products with attributes, prices, and stock status.
-* **Voice Input** — Built-in browser-based speech recognition (Web Speech API, no external services).
+* **Voice Input** — Built-in browser-based speech recognition (Web Speech API).
 * **Analytics Dashboard** — Track search queries, conversion rates, top products, and zero-result searches.
 * **Custom Responses** — Define keyword-triggered custom responses for FAQs, promotions, or store policies.
 * **Starter Questions** — Pre-configured quick-action buttons to guide customers.
@@ -28,17 +27,12 @@ Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce s
 * **Theme Customization** — 6 built-in color palettes or fully custom colors via color picker.
 * **Import/Export** — Full settings backup and restore.
 * **GDPR Ready** — Optional GDPR notice display before chat.
-* **Handoff to Messenger** — Optional buttons to redirect to WhatsApp, Telegram, Messenger, Instagram, TikTok, Viber, or email.
 
 **Privacy First:**
 
-* No external API calls — all search is performed locally on your server.
-* No tracking, no cookies, no third-party scripts.
-* No data leaves your WordPress installation.
-
-**PRO Add-on Available:**
-
-Upgrade to [Bootflow Shop Assist PRO](https://bootflow.io/pro) for AI-powered responses (OpenAI, Claude, Grok, Gemini), Google Speech-to-Text, and priority support.
+* Core search and chatbot logic run locally in the FREE version.
+* No cookies and no embedded analytics scripts.
+* The plugin package is self-contained for core features.
 
 == Installation ==
 
@@ -53,22 +47,21 @@ Upgrade to [Bootflow Shop Assist PRO](https://bootflow.io/pro) for AI-powered re
 * WooCommerce 5.0 or higher
 * PHP 7.4 or higher
 
-== Third-Party Libraries ==
+== Included Libraries ==
 
-This plugin includes the following third-party library:
+This plugin includes the following bundled library:
 
 * **Chart.js** (v4.4.7) — Used for the analytics dashboard charts.
   * License: MIT (GPL-compatible)
-  * Source: [https://github.com/chartjs/Chart.js](https://github.com/chartjs/Chart.js)
-  * Included locally in `assets/js/chart.min.js` — no external CDN calls are made.
+  * Included locally in `assets/js/chart.min.js` and loaded from plugin files.
 
 The unminified source of the plugin's own JavaScript (`chatbot.js`) is included alongside the minified version (`chatbot.min.js`).
 
 == Frequently Asked Questions ==
 
-= Does this plugin make external API calls? =
+= Does this plugin require remote APIs? =
 
-No. The FREE version performs all search locally on your server. No data is sent to external services.
+Core product search logic runs locally on your WordPress site.
 
 = Does it work without WooCommerce? =
 
@@ -84,7 +77,7 @@ The chatbot interface supports Latvian, English, German, Russian, Lithuanian, Es
 
 = How does voice input work? =
 
-Voice input uses the browser's built-in Web Speech API. No audio data is sent to external servers. Note: browser support varies.
+Voice input uses browser speech recognition capabilities. Browser support may vary.
 
 = Can I add custom responses? =
 
@@ -101,19 +94,19 @@ Yes. Go to **Shop Assist → Custom Responses** to define keyword-triggered answ
 == Changelog ==
 
 = 2.0.0 =
-* Complete rewrite with modular architecture.
-* Added product comparison feature.
-* Added analytics dashboard with Chart.js.
-* Added custom responses system.
-* Added starter questions.
-* Added 6 color palettes and custom color picker.
-* Added import/export settings.
-* Added GDPR notice option.
-* Added multi-language support (8 languages).
+* Reworked plugin architecture for maintainability.
+* Added product comparison.
+* Added analytics dashboard with local chart library.
+* Added custom response rules.
+* Added starter question buttons.
+* Added color palettes and custom color options.
+* Added settings import/export.
+* Added optional GDPR notice.
+* Added multi-language interface support.
 * Added white-label options.
-* Added handoff to messaging apps.
-* Added auto-export products to JSON on post save/delete.
-* Removed all external dependencies — fully self-contained.
+* Added optional contact method configuration.
+* Added automatic JSON export updates on content changes.
+* Improved packaging and dependency handling.
 
 = 1.0.0 =
 * Initial release.

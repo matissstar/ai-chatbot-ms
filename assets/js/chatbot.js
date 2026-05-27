@@ -709,68 +709,8 @@
 
     // Display handoff contact buttons below AI response
     function displayHandoffButtons(handoff, userQuery) {
-        if (!handoff || !handoff.methods || !handoff.methods.length) return;
-        var log = $('#msai-log');
-
-        // Build conversation context from last messages
-        var contextText = '';
-        if (handoff.include_context) {
-            var msgs = [];
-            log.find('.msai-message').slice(-6).each(function() {
-                var el = $(this);
-                var who = el.hasClass('msai-user') ? t('handoff_customer') : t('handoff_bot');
-                msgs.push(who + ': ' + el.text().substring(0, 200));
-            });
-            contextText = msgs.join('\n');
-        }
-
-        var container = $('<div>').addClass('msai-handoff');
-        if (handoff.heading) {
-            container.append($('<div>').addClass('msai-handoff-heading').text(handoff.heading));
-        }
-        var btnsWrap = $('<div>').addClass('msai-handoff-buttons');
-
-        handoff.methods.forEach(function(m) {
-            var url = m.template;
-            var subject = encodeURIComponent(t('handoff_email_subject'));
-            var body = encodeURIComponent(contextText || userQuery || '');
-
-            url = url.replace('{value}', encodeURIComponent(m.value));
-            url = url.replace('{subject}', subject);
-            url = url.replace('{body}', body);
-            // For types that don't use {subject}/{body}, clean up leftover placeholders
-            url = url.replace(/\{subject\}/g, '').replace(/\{body\}/g, '');
-
-            // Decode the value part for mailto/wa.me (they need raw value, not double encoded)
-            if (m.type === 'email') {
-                url = 'mailto:' + m.value + '?subject=' + subject + '&body=' + body;
-            } else if (m.type === 'whatsapp') {
-                url = 'https://wa.me/' + m.value + '?text=' + body;
-            } else if (m.type === 'telegram') {
-                url = 'https://t.me/' + m.value;
-            } else if (m.type === 'facebook') {
-                url = 'https://m.me/' + m.value;
-            } else if (m.type === 'instagram') {
-                url = 'https://ig.me/m/' + m.value;
-            } else if (m.type === 'tiktok') {
-                url = 'https://tiktok.com/@' + m.value.replace(/^@/, '');
-            } else if (m.type === 'custom') {
-                url = m.value;
-            }
-
-            var btn = $('<a>')
-                .addClass('msai-handoff-btn msai-handoff-' + m.type)
-                .attr('href', url)
-                .attr('target', '_blank')
-                .attr('rel', 'noopener')
-                .text(m.label);
-            btnsWrap.append(btn);
-        });
-
-        container.append(btnsWrap);
-        log.append(container);
-        saveToHistory({type: 'handoff', handoff: handoff, userQuery: userQuery});
-        scrollToLastUserMessage();
+        // Strict mode: disable external handoff button rendering.
+        return;
     }
 
     // Show product details

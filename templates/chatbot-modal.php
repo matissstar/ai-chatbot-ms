@@ -20,7 +20,7 @@ $modal_title = !empty($wl_name) ? $wl_name : $t['modal_title'];
       <button class="msai-btn msai-smart-btn msai-smart-voice" type="button" id="msai-smart-btn"><?php echo esc_html($t['btn_voice']); ?></button>
     </form>
     <?php if (get_option('ai_chatboot_ms_wl_powered_by', '0') === '1'): ?>
-    <div class="msai-powered-by"><?php echo esc_html($t['powered_by'] ?? 'Powered by'); ?> <a href="https://bootflow.io" target="_blank" rel="noopener">Bootflow Shop Assist</a></div>
+    <div class="msai-powered-by"><?php echo esc_html($t['powered_by'] ?? 'Powered by'); ?> Bootflow Shop Assist</div>
     <?php endif; ?>
   </div>
 </div>

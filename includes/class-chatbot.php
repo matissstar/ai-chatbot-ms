@@ -11,6 +11,14 @@ class AI_Chatboot_MS_Chatbot {
     public function __construct() {
         add_action('wp_ajax_ai_chatboot_ms_chat', [$this, 'handle_chat']);
         add_action('wp_ajax_nopriv_ai_chatboot_ms_chat', [$this, 'handle_chat']);
+        add_action('wp_ajax_ai_chatboot_ms_refresh_nonce', [$this, 'refresh_nonce']);
+        add_action('wp_ajax_nopriv_ai_chatboot_ms_refresh_nonce', [$this, 'refresh_nonce']);
+        add_action('wp_ajax_ai_chatboot_ms_starter_answer', [$this, 'starter_answer']);
+        add_action('wp_ajax_nopriv_ai_chatboot_ms_starter_answer', [$this, 'starter_answer']);
+        add_action('wp_ajax_ai_chatboot_ms_get_shipping', [$this, 'get_shipping_methods']);
+        add_action('wp_ajax_nopriv_ai_chatboot_ms_get_shipping', [$this, 'get_shipping_methods']);
+        add_action('wp_ajax_ai_chatboot_ms_set_shipping', [$this, 'set_shipping_method']);
+        add_action('wp_ajax_nopriv_ai_chatboot_ms_set_shipping', [$this, 'set_shipping_method']);
         add_action('wp_ajax_ai_chatboot_ms_get_modal', [$this, 'get_modal_html']);
         add_action('wp_ajax_nopriv_ai_chatboot_ms_get_modal', [$this, 'get_modal_html']);
         add_action('wp_ajax_ai_chatboot_ms_get_product_details', [$this, 'get_product_details']);
@@ -909,6 +917,260 @@ class AI_Chatboot_MS_Chatbot {
         } else {
             wp_send_json_error(['message' => ai_chatboot_ms_t('cart_failed')]);
         }
+    }
+
+    /**
+     * Return a fresh nonce for page-cache safe AJAX retries.
+     */
+    public function refresh_nonce() {
+        wp_send_json_success([
+            'nonce' => wp_create_nonce('ai_chatboot_ms_nonce'),
+        ]);
+    }
+
+    /**
+     * Return answer for configured starter question index.
+     */
+    public function starter_answer() {
+        if (!check_ajax_referer('ai_chatboot_ms_nonce', 'nonce', false)) {
+            wp_send_json_error(['text' => 'Invalid security token.'], 403);
+            return;
+        }
+
+        $index = isset($_POST['index']) ? absint($_POST['index']) : -1;
+        $items = get_option('ai_chatboot_ms_starter_questions', []);
+
+        if (!is_array($items) || !isset($items[$index]) || !is_array($items[$index])) {
+            wp_send_json_error(['text' => ai_chatboot_ms_t('be_query_unclear')]);
+            return;
+        }
+
+        $item = $items[$index];
+        $type = sanitize_key((string)($item['type'] ?? 'text'));
+        if (!in_array($type, ['text', 'search', 'ai', 'faq'], true)) {
+            $type = 'text';
+        }
+
+        $result = [
+            'text' => '',
+        ];
+
+        if ($type === 'text') {
+            $result['text'] = trim((string) wp_kses_post($item['text'] ?? ''));
+            wp_send_json_success($result);
+            return;
+        }
+
+        if ($type === 'search') {
+            $mode = sanitize_key((string)($item['search_mode'] ?? 'keyword'));
+            if (!in_array($mode, ['keyword', 'category', 'sale', 'new'], true)) {
+                $mode = 'keyword';
+            }
+
+            $products = [];
+
+            $raw_selected = is_array($item['search_products'] ?? null) ? $item['search_products'] : [];
+            if (!empty($raw_selected)) {
+                foreach ($raw_selected as $entry) {
+                    $pid = is_array($entry) ? absint($entry['id'] ?? 0) : absint($entry);
+                    if ($pid <= 0) {
+                        continue;
+                    }
+                    $product = wc_get_product($pid);
+                    if ($product) {
+                        $products[] = $this->format_product($product);
+                    }
+                    if (count($products) >= 12) {
+                        break;
+                    }
+                }
+            }
+
+            if (empty($products)) {
+                if ($mode === 'keyword') {
+                    $keyword = sanitize_text_field((string)($item['search_keyword'] ?? ''));
+                    if ($keyword !== '') {
+                        $products = $this->search_products($keyword);
+                    }
+                } elseif ($mode === 'category') {
+                    $cat_slugs = is_array($item['search_cats'] ?? null) ? $item['search_cats'] : [];
+                    $cat_slugs = array_values(array_filter(array_map('sanitize_text_field', $cat_slugs)));
+                    if (!empty($cat_slugs)) {
+                        $wc_products = wc_get_products([
+                            'status'   => 'publish',
+                            'limit'    => 12,
+                            'category' => $cat_slugs,
+                        ]);
+                        $products = array_map([$this, 'format_product'], $wc_products);
+                    }
+                } elseif ($mode === 'sale') {
+                    $wc_products = wc_get_products([
+                        'status'  => 'publish',
+                        'limit'   => 12,
+                        'on_sale' => true,
+                    ]);
+                    $products = array_map([$this, 'format_product'], $wc_products);
+                } elseif ($mode === 'new') {
+                    $wc_products = wc_get_products([
+                        'status'  => 'publish',
+                        'limit'   => 12,
+                        'orderby' => 'date',
+                        'order'   => 'DESC',
+                    ]);
+                    $products = array_map([$this, 'format_product'], $wc_products);
+                }
+            }
+
+            $result['text'] = trim((string) wp_kses_post($item['search_text'] ?? ''));
+            if ($result['text'] === '' && !empty($products)) {
+                $result['text'] = ai_chatboot_ms_t('be_some_options');
+            }
+            if (!empty($products)) {
+                $result['products'] = $products;
+                $result['mode'] = 'search';
+            } elseif ($result['text'] === '') {
+                $result['text'] = ai_chatboot_ms_t('be_query_unclear');
+            }
+
+            wp_send_json_success($result);
+            return;
+        }
+
+        if ($type === 'ai') {
+            $ai_text = trim((string) wp_kses_post($item['ai_text'] ?? ''));
+            if ($ai_text !== '') {
+                wp_send_json_success(['text' => $ai_text]);
+                return;
+            }
+
+            $keywords = sanitize_text_field((string)($item['ai_keywords'] ?? ''));
+            $products = [];
+            if ($keywords !== '') {
+                $products = $this->search_products($keywords);
+            }
+
+            if (!empty($products)) {
+                wp_send_json_success([
+                    'text'     => ai_chatboot_ms_t('be_some_options'),
+                    'products' => $products,
+                    'mode'     => 'search',
+                ]);
+                return;
+            }
+
+            wp_send_json_success(['text' => ai_chatboot_ms_t('be_query_unclear')]);
+            return;
+        }
+
+        // FAQ
+        $faq_text = trim((string) wp_kses_post($item['faq_text'] ?? ''));
+        $faq_page = absint($item['faq_page'] ?? 0);
+        if ($faq_page > 0) {
+            $faq_url = get_permalink($faq_page);
+            if ($faq_url) {
+                $faq_title = get_the_title($faq_page);
+                $link_label = ai_chatboot_ms_t('faq_read_more');
+                $faq_text .= ($faq_text !== '' ? '<br><br>' : '') . '<a href="' . esc_url($faq_url) . '" rel="noopener">' . esc_html($link_label . ': ' . ($faq_title ?: $faq_url)) . '</a>';
+            }
+        }
+
+        if ($faq_text === '') {
+            $faq_text = ai_chatboot_ms_t('be_query_unclear');
+        }
+
+        wp_send_json_success(['text' => $faq_text]);
+    }
+
+    /**
+     * Return available shipping methods for current cart/session.
+     */
+    public function get_shipping_methods() {
+        if (!check_ajax_referer('ai_chatboot_ms_nonce', 'nonce', false)) {
+            wp_send_json_error(['text' => 'Invalid security token.'], 403);
+            return;
+        }
+
+        if (!function_exists('WC') || !WC()->cart) {
+            wp_send_json_success([
+                'methods'  => [],
+                'currency' => html_entity_decode(get_woocommerce_currency_symbol(), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            ]);
+            return;
+        }
+
+        $methods = [];
+        $seen = [];
+
+        try {
+            $packages = WC()->cart->get_shipping_packages();
+            WC()->shipping()->calculate_shipping($packages);
+
+            foreach ($packages as $package) {
+                if (empty($package['rates']) || !is_array($package['rates'])) {
+                    continue;
+                }
+
+                foreach ($package['rates'] as $rate_id => $rate) {
+                    if (isset($seen[$rate_id])) {
+                        continue;
+                    }
+                    $seen[$rate_id] = true;
+
+                    $methods[] = [
+                        'id'    => sanitize_text_field((string) $rate_id),
+                        'label' => wp_strip_all_tags($rate->get_label()),
+                        'cost'  => (float) $rate->get_cost(),
+                    ];
+                }
+            }
+        } catch (Exception $e) {
+            // Return empty methods to keep frontend behavior stable.
+        }
+
+        wp_send_json_success([
+            'methods'  => $methods,
+            'currency' => html_entity_decode(get_woocommerce_currency_symbol(), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+        ]);
+    }
+
+    /**
+     * Set selected shipping method in session and return checkout URL.
+     */
+    public function set_shipping_method() {
+        if (!check_ajax_referer('ai_chatboot_ms_nonce', 'nonce', false)) {
+            wp_send_json_error(['text' => 'Invalid security token.'], 403);
+            return;
+        }
+
+        $method_id = isset($_POST['method_id']) ? sanitize_text_field(wp_unslash($_POST['method_id'])) : '';
+        if ($method_id === '') {
+            wp_send_json_error(['text' => ai_chatboot_ms_t('shipping_error')]);
+            return;
+        }
+
+        if (!function_exists('WC') || !WC()->session) {
+            wp_send_json_error(['text' => ai_chatboot_ms_t('shipping_error')]);
+            return;
+        }
+
+        $package_count = 1;
+        if (WC()->cart) {
+            $packages = WC()->cart->get_shipping_packages();
+            if (is_array($packages) && !empty($packages)) {
+                $package_count = count($packages);
+            }
+        }
+
+        $chosen_methods = array_fill(0, $package_count, $method_id);
+        WC()->session->set('chosen_shipping_methods', $chosen_methods);
+
+        if (WC()->cart) {
+            WC()->cart->calculate_totals();
+        }
+
+        wp_send_json_success([
+            'checkout_url' => function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : '/checkout/',
+        ]);
     }
 
     /**

@@ -1,12 +1,10 @@
 <?php
 /**
  * Plugin Name: Bootflow Shop Assist for WooCommerce
- * Description: Smart product search chatbot for WooCommerce — keyword & fuzzy matching, voice input, product comparison, and analytics.
+ * Description: Product search assistant for WooCommerce with local search, voice input, comparison, and analytics.
  * Version: 2.0.0
  * Author: Bootflow.io
- * Author URI: https://bootflow.io
  * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: ai-chatbot-ms
  * Domain Path: /languages
  * Requires at least: 5.8
@@ -269,14 +267,7 @@ add_action('plugins_loaded', function() {
 // Enqueue scripts and styles — NO external CDN calls
 add_action('wp_enqueue_scripts', function() {
     if (ai_chatbot_ms_is_frontend()) {
-        // Font: allow PRO to enqueue Google Fonts via filter
-        $font_url = apply_filters('ai_chatbot_ms_font_url', '');
-        if ($font_url) {
-            wp_enqueue_style('ai-chatbot-ms-google-font', $font_url, [], null);
-            $css_deps = ['ai-chatbot-ms-google-font'];
-        } else {
-            $css_deps = [];
-        }
+        $css_deps = [];
 
         $suffix = defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '' : '.min';
         wp_enqueue_style('ai-chatbot-ms-style', AI_CHATBOT_MS_PLUGIN_URL . 'assets/css/chatbot' . $suffix . '.css', $css_deps, AI_CHATBOT_MS_VERSION);

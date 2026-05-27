@@ -30,14 +30,13 @@ class AI_Chatboot_MS_Admin {
     public function add_menu() {
         $menu_name = get_option('ai_chatboot_ms_wl_admin_name', '');
         if (empty($menu_name)) $menu_name = 'Bootflow Shop Assist';
-        $icon_svg = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/></svg>');
         add_menu_page(
             $menu_name,
             $menu_name,
             'manage_options',
             'ai-chatboot-ms',
             [$this, 'page_analytics'],
-            $icon_svg,
+            'dashicons-format-chat',
             56.5
         );
         add_submenu_page(
@@ -746,7 +745,7 @@ class AI_Chatboot_MS_Admin {
                     <li><?php echo esc_html(ai_chatboot_ms_t('admin_pro_feat_fonts')); ?></li>
                     <li><?php echo esc_html(ai_chatboot_ms_t('admin_pro_feat_smart')); ?></li>
                 </ul>
-                <p style="margin:0;"><a href="https://bootflow.io/pro" target="_blank" rel="noopener" class="button button-primary" style="margin-right:8px;"><?php echo esc_html(ai_chatboot_ms_t('admin_pro_upsell_btn', 'Get PRO')); ?></a></p>
+                <p style="margin:0;"><?php echo esc_html(ai_chatboot_ms_t('admin_pro_upsell_btn', 'Get PRO')); ?></p>
             </div>
             <?php endif; ?>
 
@@ -913,6 +912,216 @@ class AI_Chatboot_MS_Admin {
     }
 
     /**
+     * Sanitize imported option values by known key to avoid unsafe direct writes.
+     *
+     * @param string $key Option key.
+     * @param mixed  $value Raw imported value.
+     * @return mixed
+     */
+    private function sanitize_imported_setting($key, $value) {
+        switch ($key) {
+            case 'ai_chatboot_ms_language':
+                $lang = sanitize_key((string) $value);
+                $allowed = ['auto', 'lv', 'en', 'de', 'ru', 'lt', 'et', 'es', 'fr'];
+                return in_array($lang, $allowed, true) ? $lang : 'auto';
+
+            case 'ai_chatboot_ms_color_palette':
+                $palette = sanitize_key((string) $value);
+                $allowed = ['indigo', 'blue', 'emerald', 'rose', 'amber', 'slate', 'custom'];
+                return in_array($palette, $allowed, true) ? $palette : 'indigo';
+
+            case 'ai_chatboot_ms_font_size':
+                $size = (string) $value;
+                $allowed = ['12', '13', '14', '15', '16', '17', '18'];
+                return in_array($size, $allowed, true) ? $size : '14';
+
+            case 'ai_chatboot_ms_font_style':
+                $style = sanitize_key((string) $value);
+                $allowed = ['normal', 'bold', 'italic'];
+                return in_array($style, $allowed, true) ? $style : 'normal';
+
+            case 'ai_chatboot_ms_voice_mode':
+                $mode = sanitize_key((string) $value);
+                $allowed = ['manual', 'delayed', 'instant'];
+                return in_array($mode, $allowed, true) ? $mode : 'delayed';
+
+            case 'ai_chatboot_ms_voice_silence':
+                $silence = intval($value);
+                return max(2, min(15, $silence));
+
+            case 'ai_chatboot_ms_show_default_starters':
+            case 'ai_chatboot_ms_auto_contact':
+            case 'ai_chatboot_ms_handoff_enabled':
+            case 'ai_chatboot_ms_handoff_context':
+            case 'ai_chatboot_ms_wl_powered_by':
+                return !empty($value) ? '1' : '0';
+
+            case 'ai_chatboot_ms_custom_primary':
+            case 'ai_chatboot_ms_custom_text':
+            case 'ai_chatboot_ms_custom_bg':
+            case 'ai_chatboot_ms_color_details':
+            case 'ai_chatboot_ms_color_compare':
+            case 'ai_chatboot_ms_color_cart':
+                return sanitize_hex_color((string) $value) ?: '';
+
+            case 'ai_chatboot_ms_gdpr_notice':
+                return wp_kses_post((string) $value);
+
+            case 'ai_chatboot_ms_handoff_methods':
+                if (is_string($value)) {
+                    $decoded = json_decode(wp_unslash($value), true);
+                } else {
+                    $decoded = $value;
+                }
+
+                if (!is_array($decoded)) {
+                    return '[]';
+                }
+
+                $clean = [];
+                $allowed_types = ['email', 'whatsapp', 'telegram', 'facebook', 'instagram', 'tiktok', 'custom'];
+                foreach ($decoded as $method) {
+                    if (!is_array($method)) {
+                        continue;
+                    }
+
+                    $type = sanitize_text_field($method['type'] ?? '');
+                    $method_value = sanitize_text_field($method['value'] ?? '');
+                    if ($type === '' || $method_value === '' || !in_array($type, $allowed_types, true)) {
+                        continue;
+                    }
+
+                    $clean[] = [
+                        'type'  => $type,
+                        'value' => $method_value,
+                        'label' => sanitize_text_field($method['label'] ?? ''),
+                    ];
+                }
+
+                return wp_json_encode($clean);
+
+            case 'ai_chatboot_ms_custom_responses':
+                if (!is_array($value)) {
+                    return [];
+                }
+
+                $items = [];
+                foreach ($value as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $keywords = trim(sanitize_text_field($item['keywords'] ?? ''));
+                    $response = trim(wp_kses_post($item['response'] ?? ''));
+                    if ($keywords === '' || $response === '') {
+                        continue;
+                    }
+                    $items[] = [
+                        'keywords' => $keywords,
+                        'response' => $response,
+                    ];
+                }
+
+                return $items;
+
+            case 'ai_chatboot_ms_starter_questions':
+                if (!is_array($value)) {
+                    return [];
+                }
+
+                $items = [];
+                foreach ($value as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+
+                    $question = trim(sanitize_text_field($item['question'] ?? ''));
+                    if ($question === '') {
+                        continue;
+                    }
+
+                    $type = sanitize_key((string) ($item['type'] ?? 'text'));
+                    if (!in_array($type, ['text', 'search', 'ai', 'faq'], true)) {
+                        $type = 'text';
+                    }
+
+                    $clean_item = [
+                        'question' => $question,
+                        'type'     => $type,
+                    ];
+
+                    if ($type === 'text') {
+                        $clean_item['text'] = trim(wp_kses_post($item['text'] ?? ''));
+                    } elseif ($type === 'search') {
+                        $search_mode = sanitize_key((string) ($item['search_mode'] ?? 'keyword'));
+                        if (!in_array($search_mode, ['keyword', 'category', 'sale', 'new'], true)) {
+                            $search_mode = 'keyword';
+                        }
+
+                        $clean_item['search_mode'] = $search_mode;
+                        $clean_item['search_keyword'] = trim(sanitize_text_field($item['search_keyword'] ?? ''));
+                        $clean_item['search_text'] = trim(wp_kses_post($item['search_text'] ?? ''));
+
+                        $raw_cats = is_array($item['search_cats'] ?? null) ? $item['search_cats'] : [];
+                        $clean_item['search_cats'] = array_values(array_filter(array_map('sanitize_text_field', $raw_cats)));
+
+                        $search_products = [];
+                        $raw_products = is_array($item['search_products'] ?? null) ? $item['search_products'] : [];
+                        foreach ($raw_products as $product) {
+                            if (is_array($product)) {
+                                $pid = absint($product['id'] ?? 0);
+                                $ptitle = sanitize_text_field($product['title'] ?? '');
+                            } else {
+                                $pid = absint($product);
+                                $ptitle = '';
+                            }
+
+                            if ($pid <= 0) {
+                                continue;
+                            }
+
+                            if ($ptitle === '') {
+                                $ptitle = get_the_title($pid);
+                                $ptitle = $ptitle ? $ptitle : '';
+                            }
+
+                            $search_products[] = [
+                                'id'    => $pid,
+                                'title' => sanitize_text_field($ptitle),
+                            ];
+                        }
+                        $clean_item['search_products'] = $search_products;
+                    } elseif ($type === 'ai') {
+                        $clean_item['ai_prompt'] = trim(sanitize_textarea_field($item['ai_prompt'] ?? ''));
+                        $clean_item['ai_text'] = trim(wp_kses_post($item['ai_text'] ?? ''));
+                        $clean_item['ai_keywords'] = trim(sanitize_text_field($item['ai_keywords'] ?? ''));
+
+                        $raw_ai_cats = is_array($item['ai_cats'] ?? null) ? $item['ai_cats'] : [];
+                        $clean_item['ai_cats'] = array_values(array_filter(array_map('sanitize_text_field', $raw_ai_cats)));
+                    } elseif ($type === 'faq') {
+                        $clean_item['faq_page'] = absint($item['faq_page'] ?? 0);
+                        $clean_item['faq_text'] = trim(wp_kses_post($item['faq_text'] ?? ''));
+                        $clean_item['faq_ai'] = !empty($item['faq_ai']);
+                    }
+
+                    $items[] = $clean_item;
+                }
+
+                return $items;
+
+            case 'ai_chatboot_ms_excluded_tags':
+            case 'ai_chatboot_ms_font':
+            case 'ai_chatboot_ms_wl_name':
+            case 'ai_chatboot_ms_wl_icon':
+            case 'ai_chatboot_ms_wl_welcome':
+            case 'ai_chatboot_ms_wl_admin_name':
+                return sanitize_text_field((string) $value);
+        }
+
+        // Preserve compatibility with PRO keys while allowing external sanitization.
+        return apply_filters('ai_chatbot_ms_sanitize_imported_setting', $value, $key);
+    }
+
+    /**
      * Import plugin settings from an uploaded JSON file.
      */
     public function handle_import_settings() {
@@ -981,7 +1190,8 @@ class AI_Chatboot_MS_Admin {
         $count = 0;
         foreach ($data['settings'] as $key => $value) {
             if (in_array($key, $allowed_keys, true)) {
-                update_option($key, $value);
+                $sanitized_value = $this->sanitize_imported_setting($key, $value);
+                update_option($key, $sanitized_value);
                 $count++;
             }
         }
