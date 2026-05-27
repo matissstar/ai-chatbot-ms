@@ -1,0 +1,308 @@
+# AI Chatboot MS — English (US) translations
+# Copyright (C) 2026 Bootflow.io
+# This file is distributed under GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: AI Chatboot MS 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-23 00:00+0000\n"
+"PO-Revision-Date: 2026-03-23 00:00+0000\n"
+"Last-Translator: Bootflow <info@bootflow.io>\n"
+"Language-Team: English\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# --- class-chatbot.php: Search responses ---
+
+msgid "Vaicājums ir tukšs."
+msgstr "Query is empty."
+
+msgid "Atradu %d preces! Šeit ir 16 labākās. Sašaurini meklēšanu:"
+msgstr "Found %d products! Here are the top 16. Narrow your search:"
+
+msgid "Šeit ir dažas iespējas:"
+msgstr "Here are some options:"
+
+msgid "Atvainojiet, bet jūsu vaicājums nav saprotams. Mēģiniet precizēt vai meklēt konkrētu preci."
+msgstr "Sorry, your query could not be understood. Try to be more specific or search for a particular product."
+
+# --- class-chatbot.php: Filter chips ---
+
+msgid "Līdz"
+msgstr "Up to"
+
+msgid "Virs"
+msgstr "Over"
+
+# --- class-chatbot.php: Gift search ---
+
+msgid "Dāvanu idejas"
+msgstr "Gift ideas"
+
+msgid "līdz"
+msgstr "up to"
+
+msgid "🎁 Es labprāt palīdzēšu atrast dāvanu! Lai labāk ieteiktu, pastāsti vairāk:"
+msgstr "🎁 I'd love to help find a gift! To recommend better, tell me more:"
+
+msgid "Kam ir dāvana? (sievietei, vīrietim, bērnam...)"
+msgstr "Who is the gift for? (woman, man, child...)"
+
+msgid "Kādas ir viņa/viņas intereses? (sports, tehnoloģijas, dārzniecība, virtuve...)"
+msgstr "What are their interests? (sports, technology, gardening, cooking...)"
+
+msgid "Kāds ir budžets? (līdz 20€, 20-50€, virs 50€...)"
+msgstr "What is your budget? (up to €20, €20-50, over €50...)"
+
+# --- class-chatbot.php: Speech / Audio errors ---
+
+msgid "Nav audio faila."
+msgstr "No audio file."
+
+msgid "Google Speech-to-Text Service Account nav iestatīts."
+msgstr "Google Speech-to-Text Service Account is not configured."
+
+msgid "Nederīgs Service Account JSON."
+msgstr "Invalid Service Account JSON."
+
+msgid "Neizdevās apstrādāt audio failu."
+msgstr "Failed to process audio file."
+
+msgid "Neizdevās iegūt Google API piekļuves tokenu."
+msgstr "Failed to obtain Google API access token."
+
+msgid "Kļūda API pieprasījumā:"
+msgstr "API request error:"
+
+msgid "API kļūda:"
+msgstr "API error:"
+
+msgid "Nezināma kļūda"
+msgstr "Unknown error"
+
+msgid "Neizdevās atpazīt runu. Mēģini vēlreiz."
+msgstr "Could not recognize speech. Try again."
+
+# --- class-chatbot.php: Product details ---
+
+msgid "Nederīgs produkta ID."
+msgstr "Invalid product ID."
+
+msgid "Produkts nav atrasts."
+msgstr "Product not found."
+
+# --- class-chatbot.php: Comparison ---
+
+msgid "Nepieciešami vismaz 2 produkti salīdzināšanai."
+msgstr "At least 2 products are required for comparison."
+
+msgid "Neizdevās ielādēt produktus."
+msgstr "Failed to load products."
+
+msgid "Cena"
+msgstr "Price"
+
+msgid "Artikuls"
+msgstr "SKU"
+
+msgid "Svars"
+msgstr "Weight"
+
+msgid "Izmēri"
+msgstr "Dimensions"
+
+msgid "Pieejamība"
+msgstr "Availability"
+
+msgid "✓ Noliktavā"
+msgstr "✓ In stock"
+
+msgid "✗ Nav pieejams"
+msgstr "✗ Out of stock"
+
+msgid "Apraksts"
+msgstr "Description"
+
+# --- class-chatbot.php: Delivery info ---
+
+msgid "Piegādes informācija:"
+msgstr "Delivery information:"
+
+msgid "Piegādes zonas:"
+msgstr "Shipping zones:"
+
+msgid "Vispārīgā informācija:"
+msgstr "General information:"
+
+msgid "Darba dienās pasūtījumi tiek apstrādāti 24 stundu laikā"
+msgstr "Orders are processed within 24 hours on business days"
+
+msgid "Piegādes laiks: 2-5 darba dienas (atkarībā no piegādes veida)"
+msgstr "Delivery time: 2-5 business days (depending on shipping method)"
+
+msgid "Bezmaksas piegāde pasūtījumiem virs 50€"
+msgstr "Free shipping for orders over €50"
+
+msgid "Saņemiet paziņojumu par sūtījuma statusu"
+msgstr "Receive notifications about shipment status"
+
+# --- class-chatbot.php: Contact info ---
+
+msgid "Kontaktinformācija:"
+msgstr "Contact information:"
+
+msgid "Veikals:"
+msgstr "Store:"
+
+msgid "Mājaslapa:"
+msgstr "Website:"
+
+msgid "E-pasts:"
+msgstr "Email:"
+
+msgid "Telefons:"
+msgstr "Phone:"
+
+msgid "Adrese:"
+msgstr "Address:"
+
+msgid "Ja jums ir jautājumi, droši sazinieties ar mums!"
+msgstr "If you have any questions, feel free to contact us!"
+
+# --- class-admin.php: Page title ---
+
+msgid "AI Chatboot MS Settings"
+msgstr "AI Chatboot MS Settings"
+
+msgid "Nepietiekamas tiesības"
+msgstr "Insufficient permissions"
+
+msgid "Viss saturs (produkti, lapas, raksti) veiksmīgi eksportēts uz JSON failu!"
+msgstr "All content (products, pages, posts) successfully exported to JSON file!"
+
+msgid "Kļūda eksportējot produktus."
+msgstr "Error exporting products."
+
+# --- class-admin.php: Status panel ---
+
+msgid "API Atslēgu status:"
+msgstr "API Key status:"
+
+msgid "✓ Iestatīta"
+msgstr "✓ Configured"
+
+msgid "✗ Nav iestatīta"
+msgstr "✗ Not configured"
+
+msgid "Produktu dati OpenAI:"
+msgstr "Product data for OpenAI:"
+
+msgid "fails:"
+msgstr "file:"
+
+msgid "✓ Eksportēts"
+msgstr "✓ Exported"
+
+msgid "✗ Nav eksportēts"
+msgstr "✗ Not exported"
+
+msgid "Pēdējais eksports:"
+msgstr "Last export:"
+
+# --- class-admin.php: Speech API settings ---
+
+msgid "Google Speech-to-Text API iestatījumi:"
+msgstr "Google Speech-to-Text API settings:"
+
+msgid "Svarīgi:"
+msgstr "Important:"
+
+msgid "Ievadiet pilnu Google Cloud Service Account JSON atslēgu"
+msgstr "Enter the full Google Cloud Service Account JSON key"
+
+msgid "Kopējiet visu JSON saturu no lejupielādētā atslēgas faila"
+msgstr "Copy the entire JSON content from the downloaded key file"
+
+msgid "Pārliecinieties, ka Service Account ir iespējojis Speech-to-Text API"
+msgstr "Make sure the Service Account has Speech-to-Text API enabled"
+
+msgid "API atslēgai ir nepieciešamas Speech-to-Text atļaujas"
+msgstr "The API key requires Speech-to-Text permissions"
+
+msgid "Pārbaudi, ka nav pārsniegts bezmaksas limits"
+msgstr "Check that the free tier limit has not been exceeded"
+
+# --- class-admin.php: Voice notes ---
+
+msgid "Balss ievades piezīmes:"
+msgstr "Voice input notes:"
+
+msgid "Pārlūka runas atpazīšana:"
+msgstr "Browser speech recognition:"
+
+msgid "nepieciešams HTTPS"
+msgstr "HTTPS required"
+
+msgid "Automātiskā pārslēgšana:"
+msgstr "Automatic fallback:"
+
+msgid "Ja pārlūka metode neizdodas (tīkla kļūdas), automātiski izmanto Google API"
+msgstr "If browser method fails (network errors), automatically uses Google API"
+
+msgid "Darbojas visos pārlūkos, bet prasa internetu un API atslēgu"
+msgstr "Works in all browsers, but requires internet and API key"
+
+msgid "Mikrofona atļaujas:"
+msgstr "Microphone permissions:"
+
+msgid "Pārlūks lūgs atļauju pirmo reizi"
+msgstr "Browser will ask for permission the first time"
+
+msgid "Valodu atbalsts:"
+msgstr "Language support:"
+
+msgid "Latviešu (lv-LV), angļu, vācu u.c."
+msgstr "Latvian (lv-LV), English, German, etc."
+
+msgid "Ja nerīkojas:"
+msgstr "If not working:"
+
+msgid "Pārbaudiet pārlūka konsoli ar"
+msgstr "Check the browser console with"
+
+# --- class-admin.php: Form fields ---
+
+msgid "Interfeisa valoda / Interface Language"
+msgstr "Interface Language"
+
+msgid "Chatbot interfeisa valoda un Speech-to-Text valoda. \"Auto\" — izmanto WordPress valodu."
+msgstr "Chatbot interface language and Speech-to-Text language. \"Auto\" — uses WordPress language."
+
+msgid "OpenAI API Atslēga"
+msgstr "OpenAI API Key"
+
+msgid "Google Speech-to-Text Service Account JSON"
+msgstr "Google Speech-to-Text Service Account JSON"
+
+msgid "Google Text-to-Speech API Atslēga (nākotnē)"
+msgstr "Google Text-to-Speech API Key (future)"
+
+# --- class-admin.php: Export section ---
+
+msgid "Satura eksports"
+msgstr "Content Export"
+
+msgid "Eksportējiet visus WooCommerce produktus, lapas, rakstus un citu saturu uz JSON failu, lai AI varētu tos izmantot gudrām atbildēm."
+msgstr "Export all WooCommerce products, pages, posts and other content to a JSON file so AI can use them for smart answers."
+
+msgid "JSON fails automātiski atjauninās katru reizi, kad jūs pievienosiet, rediģēsiet vai dzēsīsiet jebkuru lapu, rakstu vai produktu."
+msgstr "The JSON file will automatically update each time you add, edit or delete any page, post or product."
+
+msgid "Eksportēt visu saturu uz JSON"
+msgstr "Export all content to JSON"
+
+msgid "JSON fails pieejams:"
+msgstr "JSON file available:"
