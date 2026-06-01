@@ -15,15 +15,10 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('AI_CHATBOT_MS_VERSION', '2.0.0');
-define('AI_CHATBOT_MS_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('AI_CHATBOT_MS_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('AI_CHATBOT_MS_PLUGIN_FILE', __FILE__);
-
-// Legacy constant aliases for backwards compatibility
-if (!defined('AI_CHATBOOT_MS_VERSION'))    define('AI_CHATBOOT_MS_VERSION', AI_CHATBOT_MS_VERSION);
-if (!defined('AI_CHATBOOT_MS_PLUGIN_DIR')) define('AI_CHATBOOT_MS_PLUGIN_DIR', AI_CHATBOT_MS_PLUGIN_DIR);
-if (!defined('AI_CHATBOOT_MS_PLUGIN_URL')) define('AI_CHATBOOT_MS_PLUGIN_URL', AI_CHATBOT_MS_PLUGIN_URL);
+define('BOOTFLOW_SHOP_ASSIST_VERSION', '2.0.0');
+define('BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('BOOTFLOW_SHOP_ASSIST_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('BOOTFLOW_SHOP_ASSIST_PLUGIN_FILE', __FILE__);
 
 // Declare WooCommerce HPOS and Blocks compatibility
 add_action('before_woocommerce_init', function () {
@@ -34,18 +29,13 @@ add_action('before_woocommerce_init', function () {
 });
 
 // Helper: check if current page is frontend
-function ai_chatbot_ms_is_frontend() {
+function bootflow_shop_assist_is_frontend() {
     if (is_admin()) return false;
     if (isset($GLOBALS['pagenow']) && in_array($GLOBALS['pagenow'], ['wp-login.php', 'wp-register.php'], true)) return false;
     return true;
 }
-// Legacy alias
-if (!function_exists('ai_chatboot_ms_is_frontend')) {
-    function ai_chatboot_ms_is_frontend() { return ai_chatbot_ms_is_frontend(); }
-}
-
 // Helper: generate CSS variable overrides from admin palette/custom color settings
-function ai_chatbot_ms_get_theme_css() {
+function bootflow_shop_assist_get_theme_css() {
     $palettes = [
         'indigo'  => ['primary' => '#6366f1', 'hover' => '#4f46e5', 'light' => 'rgba(99,102,241,0.12)',  'grad_end' => '#8b5cf6'],
         'blue'    => ['primary' => '#3b82f6', 'hover' => '#2563eb', 'light' => 'rgba(59,130,246,0.12)',  'grad_end' => '#60a5fa'],
@@ -98,8 +88,8 @@ function ai_chatbot_ms_get_theme_css() {
         $vars[] = "--msai-gradient-fab: linear-gradient(135deg, {$p['primary']}, {$p['grad_end']})";
     }
 
-    // Font: use system font stack in FREE, PRO can override via filter
-    $font_family = apply_filters('ai_chatbot_ms_font_family', "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif");
+    // Font: use system font stack; add-ons may override via filter.
+    $font_family = apply_filters('bootflow_shop_assist_font_family', "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif");
     $font_safe = preg_replace('/[^a-zA-Z0-9\s\-]/', '', $font);
     if ($font !== 'Inter') {
         $vars[] = "--msai-font: '{$font_safe}', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -139,18 +129,13 @@ function ai_chatbot_ms_get_theme_css() {
     if (empty($vars)) return '';
     return ':root { ' . implode('; ', $vars) . '; }';
 }
-// Legacy alias
-if (!function_exists('ai_chatboot_ms_get_theme_css')) {
-    function ai_chatboot_ms_get_theme_css() { return ai_chatbot_ms_get_theme_css(); }
-}
-
 // Include classes
-require_once AI_CHATBOT_MS_PLUGIN_DIR . 'includes/translations.php';
-require_once AI_CHATBOT_MS_PLUGIN_DIR . 'includes/class-chatbot.php';
-require_once AI_CHATBOT_MS_PLUGIN_DIR . 'includes/class-admin.php';
+require_once BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'includes/translations.php';
+require_once BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'includes/class-chatbot.php';
+require_once BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'includes/class-admin.php';
 
 // Create/update analytics table on activation
-function ai_chatbot_ms_create_tables() {
+function bootflow_shop_assist_create_tables() {
     global $wpdb;
     $table = $wpdb->prefix . 'ai_chatbot_logs';
     $charset_collate = $wpdb->get_charset_collate();
@@ -179,12 +164,7 @@ function ai_chatbot_ms_create_tables() {
 
     update_option('ai_chatboot_ms_db_version', '1.1.0');
 }
-// Legacy alias
-if (!function_exists('ai_chatboot_ms_create_tables')) {
-    function ai_chatboot_ms_create_tables() { ai_chatbot_ms_create_tables(); }
-}
-
-register_activation_hook(__FILE__, 'ai_chatbot_ms_create_tables');
+register_activation_hook(__FILE__, 'bootflow_shop_assist_create_tables');
 
 // Set redirect transient on activation
 register_activation_hook(__FILE__, function() {
@@ -208,18 +188,17 @@ register_activation_hook(__FILE__, function() {
 add_filter('cron_schedules', function($schedules) {
     $schedules['ai_chatboot_ms_5min'] = [
         'interval' => 300,
-        'display'  => 'Every 5 minutes (AI Chatbot)',
+        'display'  => 'Every 5 minutes (Shop Assistant)',
     ];
     return $schedules;
 });
 
 // Debounced export check
 add_action('ai_chatboot_ms_check_export', function() {
-    global $ai_chatboot_ms_chatbot;
     if (get_transient('ai_chatboot_ms_needs_export')) {
         delete_transient('ai_chatboot_ms_needs_export');
-        if ($ai_chatboot_ms_chatbot && method_exists($ai_chatboot_ms_chatbot, 'export_products_to_json')) {
-            $ai_chatboot_ms_chatbot->export_products_to_json();
+        if ($bootflow_shop_assist_chatbot && method_exists($bootflow_shop_assist_chatbot, 'export_products_to_json')) {
+            $bootflow_shop_assist_chatbot->export_products_to_json();
         }
     }
 });
@@ -235,53 +214,49 @@ register_deactivation_hook(__FILE__, function() {
 add_action('ai_chatboot_ms_cleanup_logs', function() {
     global $wpdb;
     $table = $wpdb->prefix . 'ai_chatbot_logs';
-    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is prefix-based
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scheduled cleanup on plugin-owned table
     $wpdb->query($wpdb->prepare("DELETE FROM `{$table}` WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)", 90));
 });
 
 // Check DB version on plugins_loaded
 add_action('plugins_loaded', function() {
     if (get_option('ai_chatboot_ms_db_version') !== '1.1.0') {
-        ai_chatbot_ms_create_tables();
+        bootflow_shop_assist_create_tables();
     }
 }, 1);
 
 // Initialize the plugin
 add_action('plugins_loaded', function() {
-    load_plugin_textdomain('ai-chatbot-ms', false, dirname(plugin_basename(__FILE__)) . '/languages');
-
-    global $ai_chatboot_ms_chatbot;
-    $ai_chatboot_ms_chatbot = new AI_Chatboot_MS_Chatbot();
+    global $bootflow_shop_assist_chatbot;
+    $bootflow_shop_assist_chatbot = new Bootflow_Shop_Assist_Chatbot();
     if (is_admin()) {
-        new AI_Chatboot_MS_Admin();
+        new Bootflow_Shop_Assist_Admin();
     }
 
     /**
-     * Hook: ai_chatbot_ms_loaded
-     * Fires after the FREE plugin is fully initialized.
-     * PRO add-on hooks here to extend functionality.
+     * Hook: bootflow_shop_assist_loaded
+    * Fires after the plugin is fully initialized.
+        * Add-ons can hook here to extend functionality.
      */
-    do_action('ai_chatbot_ms_loaded');
+    do_action('bootflow_shop_assist_loaded');
 });
 
 // Enqueue scripts and styles — NO external CDN calls
 add_action('wp_enqueue_scripts', function() {
-    if (ai_chatbot_ms_is_frontend()) {
+    if (bootflow_shop_assist_is_frontend()) {
         $css_deps = [];
 
         $suffix = defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '' : '.min';
-        wp_enqueue_style('ai-chatbot-ms-style', AI_CHATBOT_MS_PLUGIN_URL . 'assets/css/chatbot' . $suffix . '.css', $css_deps, AI_CHATBOT_MS_VERSION);
-        // Legacy handle alias
-        wp_enqueue_style('ai-chatboot-ms-style', AI_CHATBOT_MS_PLUGIN_URL . 'assets/css/chatbot' . $suffix . '.css', $css_deps, AI_CHATBOT_MS_VERSION);
+        wp_enqueue_style('bootflow-shop-assist-style', BOOTFLOW_SHOP_ASSIST_PLUGIN_URL . 'assets/css/chatbot' . $suffix . '.css', $css_deps, BOOTFLOW_SHOP_ASSIST_VERSION);
 
-        $inline_css = ai_chatbot_ms_get_theme_css();
+        $inline_css = bootflow_shop_assist_get_theme_css();
         if ($inline_css) {
-            wp_add_inline_style('ai-chatbot-ms-style', $inline_css);
+            wp_add_inline_style('bootflow-shop-assist-style', $inline_css);
         }
 
-        wp_enqueue_script('ai-chatbot-ms-script', AI_CHATBOT_MS_PLUGIN_URL . 'assets/js/chatbot' . $suffix . '.js', ['jquery'], AI_CHATBOT_MS_VERSION, false);
+        wp_enqueue_script('bootflow-shop-assist-script', BOOTFLOW_SHOP_ASSIST_PLUGIN_URL . 'assets/js/chatbot' . $suffix . '.js', ['jquery'], BOOTFLOW_SHOP_ASSIST_VERSION, false);
 
-        // Build localize data — PRO can extend via filter
+        // Build localize data — add-ons can extend via filter
         $localize_data = [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('ai_chatboot_ms_nonce'),
@@ -291,7 +266,6 @@ add_action('wp_enqueue_scripts', function() {
             'voice_mode' => get_option('ai_chatboot_ms_voice_mode', 'delayed'),
             'voice_silence' => intval(get_option('ai_chatboot_ms_voice_silence', 4)),
             'show_default_starters' => get_option('ai_chatboot_ms_show_default_starters', '1'),
-            'has_google_speech' => '0', // FREE: no Google STT, PRO overrides this
             'gdpr_notice' => get_option('ai_chatboot_ms_gdpr_notice', ''),
             'wl_icon' => get_option('ai_chatboot_ms_wl_icon', ''),
             'wl_welcome' => get_option('ai_chatboot_ms_wl_welcome', ''),
@@ -299,46 +273,46 @@ add_action('wp_enqueue_scripts', function() {
         ];
 
         /**
-         * Filter: ai_chatbot_ms_localize_data
-         * PRO uses this to add has_google_speech and other data.
+         * Filter: bootflow_shop_assist_localize_data
+         * Add-ons can extend the localized frontend data.
          */
-        $localize_data = apply_filters('ai_chatbot_ms_localize_data', $localize_data);
+        $localize_data = apply_filters('bootflow_shop_assist_localize_data', $localize_data);
 
-        wp_localize_script('ai-chatbot-ms-script', 'ai_chatboot_ms_ajax', $localize_data);
+        wp_localize_script('bootflow-shop-assist-script', 'ai_chatboot_ms_ajax', $localize_data);
     }
 }, 5);
 
 // Floating button and modal injection
 add_action('wp_footer', function() {
-    if (ai_chatbot_ms_is_frontend()) {
-        ai_chatbot_ms_inject_html();
+    if (bootflow_shop_assist_is_frontend()) {
+        bootflow_shop_assist_inject_html();
     }
 }, 999);
 
 add_action('wp_body_open', function() {
-    if (ai_chatbot_ms_is_frontend()) {
-        ai_chatbot_ms_inject_html();
+    if (bootflow_shop_assist_is_frontend()) {
+        bootflow_shop_assist_inject_html();
     }
 }, 999);
 
 add_action('wp_enqueue_scripts', function() {
-    if (ai_chatbot_ms_is_frontend()) {
+    if (bootflow_shop_assist_is_frontend()) {
         $wl_icon = get_option('ai_chatboot_ms_wl_icon', '');
         $btn_icon = !empty($wl_icon) ? esc_js($wl_icon) : '💬';
         $inline_js = 'document.addEventListener("DOMContentLoaded", function() {
-            if (!document.getElementById("ai-chatboot-ms-floating-btn")) {
+            if (!document.getElementById("bootflow-shop-assist-floating-btn")) {
                 var btn = document.createElement("div");
-                btn.id = "ai-chatboot-ms-floating-btn";
+                btn.id = "bootflow-shop-assist-floating-btn";
                 btn.innerHTML = "' . $btn_icon . '";
                 btn.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;background:#0366d6;color:white;border-radius:50%;align-items:center;justify-content:center;cursor:pointer;z-index:999999!important;font-size:24px;box-shadow:0 4px 8px rgba(0,0,0,0.2);transition:all 0.3s ease";
                 document.body.appendChild(btn);
             }
         });';
-        wp_add_inline_script('ai-chatbot-ms-script', $inline_js, 'before');
+        wp_add_inline_script('bootflow-shop-assist-script', $inline_js, 'before');
     }
 }, 6);
 
-function ai_chatbot_ms_inject_html() {
+function bootflow_shop_assist_inject_html() {
     static $injected = false;
     if ($injected) return;
     $injected = true;
@@ -347,30 +321,25 @@ function ai_chatbot_ms_inject_html() {
     $btn_icon = !empty($wl_icon) ? $wl_icon : '💬';
 
     ob_start();
-    include AI_CHATBOT_MS_PLUGIN_DIR . 'templates/chatbot-modal.php';
+    include BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'templates/chatbot-modal.php';
     $modal_html = ob_get_clean();
     // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template handles its own escaping
     echo $modal_html;
-    echo '<div id="ai-chatboot-ms-floating-btn" style="position:fixed;bottom:20px;right:20px;width:60px;height:60px;background:#0366d6;color:white;border-radius:50%;align-items:center;justify-content:center;cursor:pointer;z-index:999999!important;font-size:24px;box-shadow:0 4px 8px rgba(0,0,0,0.2)">' . esc_html($btn_icon) . '</div>';
+    echo '<div id="bootflow-shop-assist-floating-btn" style="position:fixed;bottom:20px;right:20px;width:60px;height:60px;background:#0366d6;color:white;border-radius:50%;align-items:center;justify-content:center;cursor:pointer;z-index:999999!important;font-size:24px;box-shadow:0 4px 8px rgba(0,0,0,0.2)">' . esc_html($btn_icon) . '</div>';
 }
-// Legacy alias
-if (!function_exists('ai_chatboot_ms_inject_html')) {
-    function ai_chatboot_ms_inject_html() { ai_chatbot_ms_inject_html(); }
-}
-
 // Output buffering injection for problematic themes
 add_action('template_redirect', function() {
-    if (ai_chatbot_ms_is_frontend()) {
+    if (bootflow_shop_assist_is_frontend()) {
         ob_start(function($html) {
-            if (stripos($html, 'ai-chatboot-ms-floating-btn') === false && stripos($html, '</body>') !== false) {
+            if (stripos($html, 'bootflow-shop-assist-floating-btn') === false && stripos($html, '</body>') !== false) {
                 ob_start();
-                include AI_CHATBOT_MS_PLUGIN_DIR . 'templates/chatbot-modal.php';
+                include BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'templates/chatbot-modal.php';
                 $modal = ob_get_clean();
                 
                 $wl_icon_ob = get_option('ai_chatboot_ms_wl_icon', '');
                 $btn_icon_ob = !empty($wl_icon_ob) ? esc_html($wl_icon_ob) : '💬';
                 
-                $injection = $modal . '<div id="ai-chatboot-ms-floating-btn" style="position:fixed;bottom:20px;right:20px;width:60px;height:60px;background:#0366d6;color:white;border-radius:50%;align-items:center;justify-content:center;cursor:pointer;z-index:999999!important;font-size:24px;box-shadow:0 4px 8px rgba(0,0,0,0.2);transition:all 0.3s ease" onclick="document.getElementById(\'ai-chatboot-ms-chatbot\').style.display=\'block\'">' . $btn_icon_ob . '</div>';
+                $injection = $modal . '<div id="bootflow-shop-assist-floating-btn" style="position:fixed;bottom:20px;right:20px;width:60px;height:60px;background:#0366d6;color:white;border-radius:50%;align-items:center;justify-content:center;cursor:pointer;z-index:999999!important;font-size:24px;box-shadow:0 4px 8px rgba(0,0,0,0.2);transition:all 0.3s ease" onclick="document.getElementById(\'bootflow-shop-assist-chatbot\').style.display=\'block\'">' . $btn_icon_ob . '</div>';
                 
                 $html = str_ireplace('</body>', $injection . '</body>', $html);
             }
@@ -380,7 +349,7 @@ add_action('template_redirect', function() {
 }, 1);
 
 add_action('wp_print_footer_scripts', function() {
-    if (ai_chatbot_ms_is_frontend()) {
-        ai_chatbot_ms_inject_html();
+    if (bootflow_shop_assist_is_frontend()) {
+        bootflow_shop_assist_inject_html();
     }
 }, 999);

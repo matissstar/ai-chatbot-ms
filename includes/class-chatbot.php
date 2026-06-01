@@ -1,12 +1,12 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 /**
- * Bootflow Shop Assist — Chatbot (FREE)
+ * Bootflow Shop Assist — Chatbot
  * 
  * Local keyword/fuzzy search, product comparison, delivery/contact info.
- * No external API calls. PRO extends via filters.
+ * No remote service calls. Add-ons can extend via filters.
  */
-class AI_Chatboot_MS_Chatbot {
+class Bootflow_Shop_Assist_Chatbot {
 
     public function __construct() {
         add_action('wp_ajax_ai_chatboot_ms_chat', [$this, 'handle_chat']);
@@ -28,8 +28,8 @@ class AI_Chatboot_MS_Chatbot {
         add_action('wp_ajax_ai_chatboot_ms_add_to_cart', [$this, 'ajax_add_to_cart']);
         add_action('wp_ajax_nopriv_ai_chatboot_ms_add_to_cart', [$this, 'ajax_add_to_cart']);
 
-        // PRO can register speech handlers via this hook
-        do_action('ai_chatbot_ms_register_ajax_handlers', $this);
+        // Add-ons can register additional AJAX handlers via this hook
+        do_action('bootflow_shop_assist_register_ajax_handlers', $this);
 
         // Export products to JSON
         add_action('ai_chatboot_ms_export_products', [$this, 'export_products_to_json']);
@@ -374,17 +374,17 @@ class AI_Chatboot_MS_Chatbot {
         }
 
         /**
-         * Filter: ai_chatbot_ms_fallback_response
-         * PRO uses this to provide AI-powered responses when local search fails.
+         * Filter: bootflow_shop_assist_fallback_response
+         * Add-ons can provide custom responses when local search fails.
          * 
          * @param array|null $response  null = no response yet
          * @param string     $message   User's original message
          * @param string     $lower     Lowercase version
          * @return array|null  ['text' => '...', 'products' => [...]] or null
          */
-        $pro_response = apply_filters('ai_chatbot_ms_fallback_response', null, $message, $lower);
-        if ($pro_response !== null) {
-            wp_send_json_success($pro_response);
+        $addon_response = apply_filters('bootflow_shop_assist_fallback_response', null, $message, $lower);
+        if ($addon_response !== null) {
+            wp_send_json_success($addon_response);
             return;
         }
 
@@ -551,6 +551,7 @@ class AI_Chatboot_MS_Chatbot {
             'post_type' => 'product',
             'posts_per_page' => 12,
             'post_status' => 'publish',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- price range lookup requires meta filter on WooCommerce products
             'meta_query' => []
         ];
         if ($budget) {
@@ -622,9 +623,7 @@ class AI_Chatboot_MS_Chatbot {
                 $attributes[$name] = $options;
             }
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Bootflow Shop Assist: Error getting product attributes: ' . $e->getMessage());
-            }
+            // Ignore malformed attribute payloads and continue gracefully.
         }
         return $attributes;
     }
@@ -704,7 +703,7 @@ class AI_Chatboot_MS_Chatbot {
 
     public function get_modal_html() {
         ob_start();
-        include AI_CHATBOT_MS_PLUGIN_DIR . 'templates/chatbot-modal.php';
+        include BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'templates/chatbot-modal.php';
         $modal_html = ob_get_clean();
         // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template handles its own escaping
         echo $modal_html;
@@ -755,7 +754,7 @@ class AI_Chatboot_MS_Chatbot {
             $table_content = preg_replace('/<\/tr>/i', '', $table_content);
             $table_content = preg_replace('/<t[dh][^>]*>/i', '', $table_content);
             $table_content = preg_replace('/<\/t[dh]>/i', ' | ', $table_content);
-            $table_content = strip_tags($table_content);
+            $table_content = wp_strip_all_tags($table_content);
             $table_content = preg_replace('/\|(\s*\n)/', "\n", $table_content);
             return "\n" . trim($table_content) . "\n";
         }, $html);
@@ -947,7 +946,10 @@ class AI_Chatboot_MS_Chatbot {
 
         $item = $items[$index];
         $type = sanitize_key((string)($item['type'] ?? 'text'));
-        if (!in_array($type, ['text', 'search', 'ai', 'faq'], true)) {
+        if ($type === 'ai') {
+            $type = 'auto';
+        }
+        if (!in_array($type, ['text', 'search', 'auto', 'faq'], true)) {
             $type = 'text';
         }
 
@@ -1036,7 +1038,7 @@ class AI_Chatboot_MS_Chatbot {
             return;
         }
 
-        if ($type === 'ai') {
+        if ($type === 'auto') {
             $ai_text = trim((string) wp_kses_post($item['ai_text'] ?? ''));
             if ($ai_text !== '') {
                 wp_send_json_success(['text' => $ai_text]);
@@ -1177,12 +1179,17 @@ class AI_Chatboot_MS_Chatbot {
      * Log a chatbot query to the analytics table (no personal data stored).
      */
     private function log_query($query, $query_type, $results_count = 0, $top_product_id = null) {
-        global $wpdb;
-        $table = $wpdb->prefix . 'ai_chatbot_logs';
+        if (wp_doing_ajax() && !check_ajax_referer('ai_chatboot_ms_nonce', 'nonce', false)) {
+            return;
+        }
 
+        global $wpdb;
+        $table = esc_sql($wpdb->prefix . 'ai_chatbot_logs');
+
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) return;
 
-        $session_id = sanitize_text_field($_POST['session_id'] ?? '');
+        $session_id = isset($_POST['session_id']) ? sanitize_text_field(wp_unslash((string) $_POST['session_id'])) : '';
         if (empty($session_id)) {
             $session_id = substr(md5(uniqid('', true)), 0, 32);
         }
@@ -1200,5 +1207,6 @@ class AI_Chatboot_MS_Chatbot {
             'language'       => $language,
             'created_at'     => current_time('mysql'),
         ], ['%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s']);
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     }
 }

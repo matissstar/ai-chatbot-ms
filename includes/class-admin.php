@@ -3,14 +3,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 /**
  * Bootflow Shop Assist — Admin Panel
  *
- * @package AI_Chatbot_MS
+ * @package Bootflow_Shop_Assist
  * @license GPL v2 or later
  */
-class AI_Chatboot_MS_Admin {
+class Bootflow_Shop_Assist_Admin {
 
     public function __construct() {
         add_action('admin_menu', [$this, 'add_menu']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
         add_action('admin_post_export_products', [$this, 'handle_export_products']);
         add_action('admin_post_save_custom_responses', [$this, 'handle_save_custom_responses']);
         add_action('admin_post_save_starter_questions', [$this, 'handle_save_starter_questions']);
@@ -21,10 +22,33 @@ class AI_Chatboot_MS_Admin {
         add_action('admin_init', [$this, 'maybe_redirect_after_activation']);
 
         /**
-         * Hook: ai_chatbot_ms_admin_init
-         * PRO uses this to register additional AJAX handlers.
+         * Hook: bootflow_shop_assist_admin_init
+         * Add-ons can register additional AJAX handlers.
          */
-        do_action('ai_chatbot_ms_admin_init', $this);
+        do_action('bootflow_shop_assist_admin_init', $this);
+    }
+
+    public function enqueue_admin_assets($hook_suffix) {
+        if (strpos((string) $hook_suffix, 'bootflow-shop-assist') === false) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'ai-chatbot-ms-chart',
+            plugin_dir_url(dirname(__FILE__)) . 'assets/js/chart.min.js',
+            [],
+            BOOTFLOW_SHOP_ASSIST_VERSION,
+            true
+        );
+
+        wp_register_script('bootflow-shop-assist-admin', '', [], BOOTFLOW_SHOP_ASSIST_VERSION, true);
+        wp_enqueue_script('bootflow-shop-assist-admin');
+    }
+
+    public function sanitize_language_option($value) {
+        $lang = sanitize_key((string) $value);
+        $allowed = ['auto', 'lv', 'en', 'de', 'ru', 'lt', 'et', 'es', 'fr'];
+        return in_array($lang, $allowed, true) ? $lang : 'en';
     }
 
     public function add_menu() {
@@ -34,45 +58,76 @@ class AI_Chatboot_MS_Admin {
             $menu_name,
             $menu_name,
             'manage_options',
-            'ai-chatboot-ms',
+            'bootflow-shop-assist',
             [$this, 'page_analytics'],
             'dashicons-format-chat',
             56.5
         );
         add_submenu_page(
-            'ai-chatboot-ms',
+            'bootflow-shop-assist',
             '📊 ' . ai_chatboot_ms_t('admin_tab_analytics'),
             '📊 ' . ai_chatboot_ms_t('admin_tab_analytics'),
             'manage_options',
-            'ai-chatboot-ms',
+            'bootflow-shop-assist',
             [$this, 'page_analytics']
         );
         add_submenu_page(
-            'ai-chatboot-ms',
+            'bootflow-shop-assist',
             '💬 ' . ai_chatboot_ms_t('admin_tab_responses'),
             '💬 ' . ai_chatboot_ms_t('admin_tab_responses'),
             'manage_options',
-            'ai-chatboot-ms-responses',
+            'bootflow-shop-assist-responses',
             [$this, 'page_responses']
         );
         add_submenu_page(
-            'ai-chatboot-ms',
+            'bootflow-shop-assist',
             '⚙️ ' . ai_chatboot_ms_t('admin_tab_settings'),
             '⚙️ ' . ai_chatboot_ms_t('admin_tab_settings'),
             'manage_options',
-            'ai-chatboot-ms-settings',
+            'bootflow-shop-assist-settings',
             [$this, 'page_settings']
+        );
+        add_submenu_page(
+            'bootflow-shop-assist',
+            '⭐ Get PRO',
+            '⭐ Get PRO',
+            'manage_options',
+            'bootflow-shop-assist-get-pro',
+            [$this, 'page_get_pro']
         );
     }
 
+    public function page_get_pro() {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html(ai_chatboot_ms_t('admin_no_permission')));
+        }
+
+        $pro_url = 'https://bootflow.io/ai-chatbot-for-woocommerce/';
+        ?>
+        <div class="wrap">
+            <h1>Bootflow Shop Assist PRO</h1>
+            <p><?php echo esc_html__('Need advanced functionality and premium support?', 'ai-chatbot-ms'); ?></p>
+            <p>
+                <a class="button button-primary" href="<?php echo esc_url($pro_url); ?>" target="_blank" rel="noopener noreferrer">
+                    <?php echo esc_html__('View PRO details', 'ai-chatbot-ms'); ?>
+                </a>
+            </p>
+        </div>
+        <?php
+    }
+
     public function register_settings() {
-        register_setting('ai_chatboot_ms_settings', 'ai_chatboot_ms_language');
+        register_setting('ai_chatboot_ms_settings', 'ai_chatboot_ms_language', [
+            'type' => 'string',
+            'default' => 'en',
+            'sanitize_callback' => [$this, 'sanitize_language_option'],
+        ]);
 
         /**
-         * Hook: ai_chatbot_ms_register_settings
-         * PRO uses this to register AI provider, API key, and model settings.
+         * Hook: bootflow_shop_assist_register_settings
+         * Add-ons can register additional settings.
          */
-        do_action('ai_chatbot_ms_register_settings');
+        do_action('bootflow_shop_assist_register_settings');
         register_setting('ai_chatboot_ms_settings', 'ai_chatboot_ms_excluded_tags', [
             'type' => 'string',
             'default' => '',
@@ -249,9 +304,9 @@ class AI_Chatboot_MS_Admin {
 
         check_admin_referer('export_products');
 
-        global $ai_chatboot_ms_chatbot;
-        if ($ai_chatboot_ms_chatbot && method_exists($ai_chatboot_ms_chatbot, 'export_products_to_json')) {
-            $result = $ai_chatboot_ms_chatbot->export_products_to_json();
+        global $bootflow_shop_assist_chatbot;
+        if ($bootflow_shop_assist_chatbot && method_exists($bootflow_shop_assist_chatbot, 'export_products_to_json')) {
+            $result = $bootflow_shop_assist_chatbot->export_products_to_json();
 
             if ($result) {
                 add_settings_error('ai_chatboot_ms_messages', 'export_success', ai_chatboot_ms_t('admin_export_success'), 'updated');
@@ -260,7 +315,7 @@ class AI_Chatboot_MS_Admin {
             }
         }
 
-        wp_redirect(add_query_arg('page', 'ai-chatboot-ms-settings', admin_url('admin.php')));
+        wp_safe_redirect(add_query_arg('page', 'bootflow-shop-assist-settings', admin_url('admin.php')));
         exit;
     }
 
@@ -300,14 +355,14 @@ class AI_Chatboot_MS_Admin {
     private function render_settings_tab() {
         $products_export_time = get_option('ai_chatboot_ms_products_export_time');
         $products_json_url = get_option('ai_chatboot_ms_products_json_url');
-        $current_lang = get_option('ai_chatboot_ms_language', 'auto');
+        $current_lang = get_option('ai_chatboot_ms_language', 'en');
         $active_lang = ai_chatboot_ms_get_language();
 
         $available_languages = [
-            'auto' => 'Auto (WordPress: ' . get_locale() . ' → ' . $active_lang . ')',
-            'lv'   => 'Latviešu',
             'en'   => 'English',
+            'lv'   => 'Latviešu',
             'de'   => 'Deutsch',
+            'auto' => 'Auto (WordPress: ' . get_locale() . ' → ' . $active_lang . ')',
             'ru'   => 'Русский',
             'lt'   => 'Lietuvių',
             'et'   => 'Eesti',
@@ -335,10 +390,10 @@ class AI_Chatboot_MS_Admin {
 
                     <?php
                     /**
-                     * Hook: ai_chatbot_ms_settings_after_language
-                     * PRO uses this to inject AI provider, API key, model, and Google STT settings.
+                     * Hook: bootflow_shop_assist_settings_after_language
+                     * Add-ons can inject extra settings fields.
                      */
-                    do_action('ai_chatbot_ms_settings_after_language');
+                    do_action('bootflow_shop_assist_settings_after_language');
                     ?>
 
                     <tr>
@@ -730,31 +785,19 @@ class AI_Chatboot_MS_Admin {
 
             <?php
             /**
-             * Hook: ai_chatbot_ms_settings_after_form
-             * PRO uses this to inject test connection JS and API status panel.
+             * Hook: bootflow_shop_assist_settings_after_form
+             * Add-ons can inject extra settings UI.
              */
-            do_action('ai_chatbot_ms_settings_after_form');
+            do_action('bootflow_shop_assist_settings_after_form');
 
-            // PRO upsell notice (only when PRO is not active)
-            if (!defined('AI_CHATBOT_MS_PRO_VERSION')): ?>
-            <div style="margin-top:20px;padding:16px 20px;background:linear-gradient(135deg,#f0f6fc,#e8f0fe);border:1px solid #72aee6;border-left:4px solid #2271b1;border-radius:4px;">
-                <p style="font-size:15px;margin:0 0 8px;font-weight:600;">🚀 <?php echo esc_html(ai_chatboot_ms_t('admin_pro_upsell_title', 'Upgrade to PRO for AI-powered responses')); ?></p>
-                <ul style="margin:0 0 8px 18px;line-height:1.8;">
-                    <li><?php echo esc_html(ai_chatboot_ms_t('admin_pro_feat_ai')); ?></li>
-                    <li><?php echo esc_html(ai_chatboot_ms_t('admin_pro_feat_speech')); ?></li>
-                    <li><?php echo esc_html(ai_chatboot_ms_t('admin_pro_feat_fonts')); ?></li>
-                    <li><?php echo esc_html(ai_chatboot_ms_t('admin_pro_feat_smart')); ?></li>
-                </ul>
-                <p style="margin:0;"><?php echo esc_html(ai_chatboot_ms_t('admin_pro_upsell_btn', 'Get PRO')); ?></p>
-            </div>
-            <?php endif; ?>
+            ?>
 
             <div style="margin-top:20px;padding:12px 16px;background:#f0f6fc;border:1px solid #c3c4c7;border-left:4px solid #72aee6;">
                 <p><strong><?php echo esc_html(ai_chatboot_ms_t('admin_product_data')); ?></strong></p>
                 <ul>
                     <li>JSON <?php echo esc_html(ai_chatboot_ms_t('admin_file_label')); ?> <?php echo wp_kses($products_json_url ? '<span style="color: green;">' . esc_html(ai_chatboot_ms_t('admin_exported')) . '</span>' : '<span style="color: red;">' . esc_html(ai_chatboot_ms_t('admin_not_exported')) . '</span>', ['span' => ['style' => []]]); ?></li>
                     <?php if ($products_export_time): ?>
-                        <li><?php echo esc_html(ai_chatboot_ms_t('admin_last_export')); ?> <?php echo esc_html(date('Y-m-d H:i:s', $products_export_time)); ?></li>
+                        <li><?php echo esc_html(ai_chatboot_ms_t('admin_last_export')); ?> <?php echo esc_html(gmdate('Y-m-d H:i:s', (int) $products_export_time)); ?></li>
                     <?php endif; ?>
                     <?php
                     $json_path = get_option('ai_chatboot_ms_products_json_path');
@@ -784,10 +827,11 @@ class AI_Chatboot_MS_Admin {
 
             <?php
             // Show import result notice
-            if (isset($_GET['msai_import'])) {
-                $status = sanitize_text_field($_GET['msai_import']);
+            $import_notice_nonce = isset($_GET['msai_notice_nonce']) ? sanitize_text_field(wp_unslash((string) $_GET['msai_notice_nonce'])) : '';
+            if (isset($_GET['msai_import']) && wp_verify_nonce($import_notice_nonce, 'ai_chatboot_ms_notice')) {
+                $status = sanitize_text_field(wp_unslash((string) $_GET['msai_import']));
                 if ($status === 'success') {
-                    $cnt = intval($_GET['msai_count'] ?? 0);
+                    $cnt = isset($_GET['msai_count']) ? intval(wp_unslash((string) $_GET['msai_count'])) : 0;
                     echo '<div class="notice notice-success is-dismissible"><p>✅ ' . esc_html(sprintf(ai_chatboot_ms_t('admin_ie_import_ok'), $cnt)) . '</p></div>';
                 } elseif ($status === 'no_file') {
                     echo '<div class="notice notice-error is-dismissible"><p>❌ ' . esc_html(ai_chatboot_ms_t('admin_ie_no_file')) . '</p></div>';
@@ -883,10 +927,10 @@ class AI_Chatboot_MS_Admin {
         ];
 
         /**
-         * Filter: ai_chatbot_ms_export_option_keys
-         * PRO adds AI-specific keys to the export list.
+         * Filter: bootflow_shop_assist_export_option_keys
+         * Add-ons can append keys to the export list.
          */
-        $option_keys = apply_filters('ai_chatbot_ms_export_option_keys', $option_keys);
+        $option_keys = apply_filters('bootflow_shop_assist_export_option_keys', $option_keys);
 
         $data = [
             'plugin'     => 'ai_chatboot_ms',
@@ -923,7 +967,7 @@ class AI_Chatboot_MS_Admin {
             case 'ai_chatboot_ms_language':
                 $lang = sanitize_key((string) $value);
                 $allowed = ['auto', 'lv', 'en', 'de', 'ru', 'lt', 'et', 'es', 'fr'];
-                return in_array($lang, $allowed, true) ? $lang : 'auto';
+                return in_array($lang, $allowed, true) ? $lang : 'en';
 
             case 'ai_chatboot_ms_color_palette':
                 $palette = sanitize_key((string) $value);
@@ -1040,7 +1084,10 @@ class AI_Chatboot_MS_Admin {
                     }
 
                     $type = sanitize_key((string) ($item['type'] ?? 'text'));
-                    if (!in_array($type, ['text', 'search', 'ai', 'faq'], true)) {
+                    if ($type === 'ai') {
+                        $type = 'auto';
+                    }
+                    if (!in_array($type, ['text', 'search', 'auto', 'faq'], true)) {
                         $type = 'text';
                     }
 
@@ -1090,7 +1137,7 @@ class AI_Chatboot_MS_Admin {
                             ];
                         }
                         $clean_item['search_products'] = $search_products;
-                    } elseif ($type === 'ai') {
+                    } elseif ($type === 'auto') {
                         $clean_item['ai_prompt'] = trim(sanitize_textarea_field($item['ai_prompt'] ?? ''));
                         $clean_item['ai_text'] = trim(wp_kses_post($item['ai_text'] ?? ''));
                         $clean_item['ai_keywords'] = trim(sanitize_text_field($item['ai_keywords'] ?? ''));
@@ -1117,8 +1164,8 @@ class AI_Chatboot_MS_Admin {
                 return sanitize_text_field((string) $value);
         }
 
-        // Preserve compatibility with PRO keys while allowing external sanitization.
-        return apply_filters('ai_chatbot_ms_sanitize_imported_setting', $value, $key);
+        // Preserve compatibility with add-on keys while allowing external sanitization.
+        return apply_filters('bootflow_shop_assist_sanitize_imported_setting', $value, $key);
     }
 
     /**
@@ -1130,24 +1177,30 @@ class AI_Chatboot_MS_Admin {
         }
         check_admin_referer('ai_chatboot_ms_import_settings');
 
-        $redirect = admin_url('admin.php?page=ai-chatboot-ms-settings');
+        $redirect = admin_url('admin.php?page=bootflow-shop-assist-settings');
+        $notice_nonce = wp_create_nonce('ai_chatboot_ms_notice');
 
-        if (empty($_FILES['settings_file']['tmp_name'])) {
-            wp_redirect(add_query_arg('msai_import', 'no_file', $redirect));
+        if (empty($_FILES['settings_file']) || !is_array($_FILES['settings_file'])) {
+            wp_safe_redirect(add_query_arg(['msai_import' => 'no_file', 'msai_notice_nonce' => $notice_nonce], $redirect));
             exit;
         }
 
-        $file = $_FILES['settings_file'];
-        if ($file['error'] !== UPLOAD_ERR_OK || $file['size'] > 524288) { // max 512KB
-            wp_redirect(add_query_arg('msai_import', 'invalid', $redirect));
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- file array is validated and each used field is sanitized below
+        $file = wp_unslash($_FILES['settings_file']);
+        $tmp_name = isset($file['tmp_name']) ? sanitize_text_field((string) $file['tmp_name']) : '';
+        $file_error = isset($file['error']) ? (int) $file['error'] : UPLOAD_ERR_NO_FILE;
+        $file_size = isset($file['size']) ? (int) $file['size'] : 0;
+
+        if ($tmp_name === '' || $file_error !== UPLOAD_ERR_OK || $file_size > 524288 || !is_uploaded_file($tmp_name)) { // max 512KB
+            wp_safe_redirect(add_query_arg(['msai_import' => 'invalid', 'msai_notice_nonce' => $notice_nonce], $redirect));
             exit;
         }
 
-        $content = file_get_contents($file['tmp_name']);
+        $content = file_get_contents($tmp_name);
         $data = json_decode($content, true);
 
         if (!is_array($data) || empty($data['plugin']) || $data['plugin'] !== 'ai_chatboot_ms' || empty($data['settings'])) {
-            wp_redirect(add_query_arg('msai_import', 'invalid', $redirect));
+            wp_safe_redirect(add_query_arg(['msai_import' => 'invalid', 'msai_notice_nonce' => $notice_nonce], $redirect));
             exit;
         }
 
@@ -1182,10 +1235,10 @@ class AI_Chatboot_MS_Admin {
         ];
 
         /**
-         * Filter: ai_chatbot_ms_import_allowed_keys
-         * PRO adds AI-specific keys to the import allowed list.
+         * Filter: bootflow_shop_assist_import_allowed_keys
+         * Add-ons can append keys to the import allowed list.
          */
-        $allowed_keys = apply_filters('ai_chatbot_ms_import_allowed_keys', $allowed_keys);
+        $allowed_keys = apply_filters('bootflow_shop_assist_import_allowed_keys', $allowed_keys);
 
         $count = 0;
         foreach ($data['settings'] as $key => $value) {
@@ -1196,7 +1249,7 @@ class AI_Chatboot_MS_Admin {
             }
         }
 
-        wp_redirect(add_query_arg(['msai_import' => 'success', 'msai_count' => $count], $redirect));
+        wp_safe_redirect(add_query_arg(['msai_import' => 'success', 'msai_count' => $count, 'msai_notice_nonce' => $notice_nonce], $redirect));
         exit;
     }
 
@@ -1223,7 +1276,11 @@ class AI_Chatboot_MS_Admin {
 
         update_option('ai_chatboot_ms_custom_responses', $items);
 
-        wp_redirect(add_query_arg(['page' => 'ai-chatboot-ms-responses', 'saved' => '1'], admin_url('admin.php')));
+        wp_safe_redirect(add_query_arg([
+            'page' => 'bootflow-shop-assist-responses',
+            'saved' => '1',
+            'msai_notice_nonce' => wp_create_nonce('ai_chatboot_ms_notice'),
+        ], admin_url('admin.php')));
         exit;
     }
 
@@ -1305,7 +1362,10 @@ class AI_Chatboot_MS_Admin {
             <p><?php echo esc_html(ai_chatboot_ms_t('admin_cr_description')); ?><br>
             <strong><?php echo esc_html(ai_chatboot_ms_t('admin_cr_keywords_label')); ?></strong> — <?php echo esc_html(ai_chatboot_ms_t('admin_cr_keywords_hint')); ?> (<code><?php echo esc_html(ai_chatboot_ms_t('admin_cr_placeholder_kw')); ?></code>). <strong><?php echo esc_html(ai_chatboot_ms_t('admin_cr_response_label')); ?></strong> — <?php echo esc_html(ai_chatboot_ms_t('admin_cr_response_hint')); ?>.</p>
 
-            <?php if (isset($_GET['saved'])): ?>
+            <?php
+            $cr_saved_notice_nonce = isset($_GET['msai_notice_nonce']) ? sanitize_text_field(wp_unslash((string) $_GET['msai_notice_nonce'])) : '';
+            if (isset($_GET['saved']) && wp_verify_nonce($cr_saved_notice_nonce, 'ai_chatboot_ms_notice')):
+            ?>
                 <div class="notice notice-success is-dismissible"><p><?php echo esc_html(ai_chatboot_ms_t('admin_cr_saved')); ?></p></div>
             <?php endif; ?>
 
@@ -1380,7 +1440,7 @@ class AI_Chatboot_MS_Admin {
             wp_send_json_error(ai_chatboot_ms_t('admin_unauthorized'));
             return;
         }
-        $q = sanitize_text_field($_GET['q'] ?? '');
+        $q = isset($_GET['q']) ? sanitize_text_field(wp_unslash((string) $_GET['q'])) : '';
         if (strlen($q) < 2) { wp_send_json_success([]); return; }
 
         $json_path = get_option('ai_chatboot_ms_products_json_path');
@@ -1414,14 +1474,20 @@ class AI_Chatboot_MS_Admin {
         $texts     = isset($_POST['sq_text'])      ? array_map('wp_kses_post', wp_unslash((array) $_POST['sq_text'])) : [];
         $search_modes = isset($_POST['sq_search_mode']) ? array_map('sanitize_text_field', wp_unslash((array) $_POST['sq_search_mode'])) : [];
         $search_keywords = isset($_POST['sq_search_keyword']) ? array_map('sanitize_text_field', wp_unslash((array) $_POST['sq_search_keyword'])) : [];
-        $search_cats = isset($_POST['sq_search_cats']) ? wp_unslash((array) $_POST['sq_search_cats']) : [];
+        $search_cats = [];
+        if (isset($_POST['sq_search_cats']) && is_array($_POST['sq_search_cats'])) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- values are sanitized per item immediately below
+            foreach ((array) wp_unslash($_POST['sq_search_cats']) as $index => $cats) {
+                $search_cats[(int) $index] = array_map('sanitize_text_field', (array) $cats);
+            }
+        }
         $search_texts = isset($_POST['sq_search_text']) ? array_map('wp_kses_post', wp_unslash((array) $_POST['sq_search_text'])) : [];
         $ai_prompts = isset($_POST['sq_ai_prompt']) ? array_map('sanitize_textarea_field', wp_unslash((array) $_POST['sq_ai_prompt'])) : [];
         $ai_texts   = isset($_POST['sq_ai_text'])   ? array_map('wp_kses_post', wp_unslash((array) $_POST['sq_ai_text'])) : [];
         $ai_keywords = isset($_POST['sq_ai_keywords']) ? array_map('sanitize_text_field', wp_unslash((array) $_POST['sq_ai_keywords'])) : [];
-        $faq_pages = isset($_POST['sq_faq_page']) ? array_map('absint', (array) $_POST['sq_faq_page']) : [];
+        $faq_pages = isset($_POST['sq_faq_page']) ? array_map('absint', (array) wp_unslash($_POST['sq_faq_page'])) : [];
         $faq_texts = isset($_POST['sq_faq_text']) ? array_map('wp_kses_post', wp_unslash((array) $_POST['sq_faq_text'])) : [];
-        $faq_ais   = isset($_POST['sq_faq_ai'])   ? (array) $_POST['sq_faq_ai'] : [];
+        $faq_ais   = isset($_POST['sq_faq_ai'])   ? array_map('sanitize_text_field', (array) wp_unslash($_POST['sq_faq_ai'])) : [];
 
         $items = [];
         foreach ($questions as $i => $q) {
@@ -1440,7 +1506,7 @@ class AI_Chatboot_MS_Admin {
                 $item['search_cats'] = array_map('sanitize_text_field', is_array($raw_cats) ? $raw_cats : []);
                 $item['search_text'] = trim($search_texts[$i] ?? '');
                 // Specific products
-                $raw_prod_ids = isset($_POST['sq_search_products'][$i]) ? array_map('absint', (array) $_POST['sq_search_products'][$i]) : [];
+                $raw_prod_ids = isset($_POST['sq_search_products'][$i]) ? array_map('absint', (array) wp_unslash($_POST['sq_search_products'][$i])) : [];
                 $search_prods = [];
                 foreach ($raw_prod_ids as $pid) {
                     if ($pid > 0) {
@@ -1449,7 +1515,8 @@ class AI_Chatboot_MS_Admin {
                     }
                 }
                 $item['search_products'] = $search_prods;
-            } elseif ($type === 'ai') {
+            } elseif ($type === 'auto' || $type === 'ai') {
+                $type = 'auto';
                 $item['ai_prompt'] = trim($ai_prompts[$i] ?? '');
                 $item['ai_text'] = trim($ai_texts[$i] ?? '');
                 $item['ai_keywords'] = trim($ai_keywords[$i] ?? '');
@@ -1464,13 +1531,23 @@ class AI_Chatboot_MS_Admin {
         }
 
         update_option('ai_chatboot_ms_starter_questions', $items);
-        wp_redirect(add_query_arg(['page' => 'ai-chatboot-ms-responses', 'sq_saved' => '1'], admin_url('admin.php')));
+        wp_safe_redirect(add_query_arg([
+            'page' => 'bootflow-shop-assist-responses',
+            'sq_saved' => '1',
+            'msai_notice_nonce' => wp_create_nonce('ai_chatboot_ms_notice'),
+        ], admin_url('admin.php')));
         exit;
     }
 
     private function render_starter_questions_section() {
         $items = get_option('ai_chatboot_ms_starter_questions', []);
         if (!is_array($items)) $items = [];
+        foreach ($items as &$item) {
+            if (isset($item['type']) && $item['type'] === 'ai') {
+                $item['type'] = 'auto';
+            }
+        }
+        unset($item);
 
         // Get published WP pages for FAQ type dropdown
         $wp_pages = get_pages(['sort_column' => 'post_title', 'post_status' => 'publish']);
@@ -1597,7 +1674,10 @@ class AI_Chatboot_MS_Admin {
             <h2><?php echo esc_html(ai_chatboot_ms_t('admin_sq_title')); ?></h2>
             <p><?php echo esc_html(ai_chatboot_ms_t('admin_sq_description')); ?></p>
 
-            <?php if (isset($_GET['sq_saved'])): ?>
+            <?php
+            $sq_saved_notice_nonce = isset($_GET['msai_notice_nonce']) ? sanitize_text_field(wp_unslash((string) $_GET['msai_notice_nonce'])) : '';
+            if (isset($_GET['sq_saved']) && wp_verify_nonce($sq_saved_notice_nonce, 'ai_chatboot_ms_notice')):
+            ?>
                 <div class="notice notice-success is-dismissible"><p><?php echo esc_html(ai_chatboot_ms_t('admin_sq_saved')); ?></p></div>
             <?php endif; ?>
 
@@ -1619,7 +1699,7 @@ class AI_Chatboot_MS_Admin {
                             <select name="sq_type[]" class="msai-sq-type-select" onchange="msaiSqToggle(this)">
                                 <option value="text" <?php selected($item['type'], 'text'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_text')); ?></option>
                                 <option value="search" <?php selected($item['type'], 'search'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_search')); ?></option>
-                                <option value="ai" <?php selected($item['type'], 'ai'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_ai')); ?></option>
+                                <option value="auto" <?php selected($item['type'], 'auto'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_ai')); ?></option>
                                 <option value="faq" <?php selected($item['type'], 'faq'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_faq')); ?></option>
                             </select>
 
@@ -1697,8 +1777,8 @@ class AI_Chatboot_MS_Admin {
                                 <p class="description" style="margin-top:2px;font-size:12px;color:#646970;"><?php echo esc_html(ai_chatboot_ms_t('admin_sq_faq_ai_desc')); ?></p>
                             </div>
 
-                            <!-- AI prompt block -->
-                            <div class="msai-sq-block msai-sq-b-ai" style="<?php echo esc_attr($item['type'] !== 'ai' ? 'display:none' : ''); ?>">
+                            <!-- Advanced prompt block -->
+                            <div class="msai-sq-block msai-sq-b-auto" style="<?php echo esc_attr($item['type'] !== 'auto' ? 'display:none' : ''); ?>">
                                 <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_text_label')); ?></label>
                                 <input type="text" name="sq_ai_text[]" value="<?php echo esc_attr($item['ai_text'] ?? ''); ?>" placeholder="<?php echo esc_attr(ai_chatboot_ms_t('admin_sq_ai_text_ph')); ?>">
                                 <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_prompt_label')); ?></label>
@@ -1709,13 +1789,13 @@ class AI_Chatboot_MS_Admin {
 
                                 <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_cats_label')); ?></label>
                                 <div class="msai-sq-cat-wrap" style="display:block">
-                                    <div class="msai-sq-cat-list msai-sq-ai-cat-list">
+                                    <div class="msai-sq-cat-list msai-sq-auto-cat-list">
                                         <?php foreach (($item['ai_cats'] ?? []) as $cat_slug): ?>
                                             <?php $cat_name = $wc_cats_flat[$cat_slug] ?? $cat_slug; ?>
                                             <span class="msai-sq-cat-tag"><?php echo esc_html($cat_name); ?><input type="hidden" name="sq_ai_cats[<?php echo (int) $i; ?>][]" value="<?php echo esc_attr($cat_slug); ?>"><span class="msai-sq-cat-remove" onclick="this.parentElement.remove()">✕</span></span>
                                         <?php endforeach; ?>
                                     </div>
-                                    <select class="msai-sq-cat-select" onchange="msaiSqAddAiCat(this, <?php echo (int) $i; ?>)">
+                                    <select class="msai-sq-cat-select" onchange="msaiSqAddAutoCat(this, <?php echo (int) $i; ?>)">
                                         <option value=""><?php echo esc_html(ai_chatboot_ms_t('admin_sq_select_category')); ?></option>
                                         <?php foreach ($wc_cats_grouped as $group): ?>
                                             <optgroup label="<?php echo esc_attr($group['name']); ?>">
@@ -1788,7 +1868,7 @@ class AI_Chatboot_MS_Admin {
             var item = sel.closest('.msai-sq-item');
             item.querySelector('.msai-sq-b-text').style.display = sel.value === 'text' ? '' : 'none';
             item.querySelector('.msai-sq-b-search').style.display = sel.value === 'search' ? '' : 'none';
-            item.querySelector('.msai-sq-b-ai').style.display = sel.value === 'ai' ? '' : 'none';
+            item.querySelector('.msai-sq-b-auto').style.display = sel.value === 'auto' ? '' : 'none';
             item.querySelector('.msai-sq-b-faq').style.display = sel.value === 'faq' ? '' : 'none';
         }
         function msaiSqSearchMode(radio) {
@@ -1824,8 +1904,8 @@ class AI_Chatboot_MS_Admin {
                 });
                 var catSel = el.querySelector('.msai-sq-b-search .msai-sq-cat-select');
                 if (catSel) catSel.setAttribute('onchange', 'msaiSqAddCat(this, ' + i + ')');
-                var aiCatSel = el.querySelector('.msai-sq-b-ai .msai-sq-cat-select');
-                if (aiCatSel) aiCatSel.setAttribute('onchange', 'msaiSqAddAiCat(this, ' + i + ')');
+                var autoCatSel = el.querySelector('.msai-sq-b-auto .msai-sq-cat-select');
+                if (autoCatSel) autoCatSel.setAttribute('onchange', 'msaiSqAddAutoCat(this, ' + i + ')');
                 var prodInput = el.querySelector('.msai-sq-prod-input');
                 if (prodInput) prodInput.setAttribute('oninput', 'msaiSqProdSearch(this, ' + i + ')');
                 // FAQ checkbox
@@ -1860,7 +1940,7 @@ class AI_Chatboot_MS_Admin {
                 + '<select name="sq_type[]" class="msai-sq-type-select" onchange="msaiSqToggle(this)">'
                 + '<option value="text">' + msaiSqLabels.type_text + '</option>'
                 + '<option value="search">' + msaiSqLabels.type_search + '</option>'
-                + '<option value="ai">' + msaiSqLabels.type_ai + '</option>'
+                + '<option value="auto">' + msaiSqLabels.type_ai + '</option>'
                 + '<option value="faq">' + msaiSqLabels.type_faq + '</option></select>'
                 + '<div class="msai-sq-block msai-sq-b-text"><label>' + msaiSqLabels.text_label + '</label><textarea name="sq_text[]"></textarea></div>'
                 + '<div class="msai-sq-block msai-sq-b-search" style="display:none">'
@@ -1877,14 +1957,14 @@ class AI_Chatboot_MS_Admin {
                 + '<label>' + msaiSqLabels.products_label + '</label>'
                 + '<div class="msai-sq-prod-list"></div>'
                 + '<div class="msai-sq-prod-search-wrap"><input type="text" class="msai-sq-prod-input" placeholder="' + msaiSqLabels.products_ph + '" oninput="msaiSqProdSearch(this, ' + idx + ')" autocomplete="off"><div class="msai-sq-prod-results"></div></div></div>'
-                + '<div class="msai-sq-block msai-sq-b-ai" style="display:none">'
+                + '<div class="msai-sq-block msai-sq-b-auto" style="display:none">'
                 + '<label>' + msaiSqLabels.ai_text + '</label><input type="text" name="sq_ai_text[]" placeholder="' + msaiSqLabels.ai_text_ph + '">'
                 + '<label>' + msaiSqLabels.ai_prompt + '</label><textarea name="sq_ai_prompt[]" placeholder="' + msaiSqLabels.ai_prompt_ph + '"></textarea>'
                 + '<label>' + msaiSqLabels.ai_keywords + '</label><input type="text" name="sq_ai_keywords[]" placeholder="' + msaiSqLabels.ai_keywords_ph + '">'
                 + '<p class="description" style="margin-top:2px;font-size:12px;color:#646970;">' + msaiSqLabels.ai_keywords_desc + '</p>'
                 + '<label>' + msaiSqLabels.ai_cats_label + '</label>'
-                + '<div class="msai-sq-cat-wrap" style="display:block"><div class="msai-sq-cat-list msai-sq-ai-cat-list"></div>'
-                + '<select class="msai-sq-cat-select" onchange="msaiSqAddAiCat(this, ' + idx + ')">' + catOpts + '</select></div></div>'
+                + '<div class="msai-sq-cat-wrap" style="display:block"><div class="msai-sq-cat-list msai-sq-auto-cat-list"></div>'
+                + '<select class="msai-sq-cat-select" onchange="msaiSqAddAutoCat(this, ' + idx + ')">' + catOpts + '</select></div></div>'
                 + '<div class="msai-sq-block msai-sq-b-faq" style="display:none">'
                 + '<label>' + msaiSqLabels.faq_page_label + '</label>'
                 + '<select name="sq_faq_page[]">' + faqPageOpts + '</select>'
@@ -1895,9 +1975,9 @@ class AI_Chatboot_MS_Admin {
             list.appendChild(div);
             div.querySelector('input').focus();
         }
-        function msaiSqAddAiCat(sel, idx) {
+        function msaiSqAddAutoCat(sel, idx) {
             if (!sel.value) return;
-            var list = sel.closest('.msai-sq-cat-wrap').querySelector('.msai-sq-ai-cat-list');
+            var list = sel.closest('.msai-sq-cat-wrap').querySelector('.msai-sq-auto-cat-list');
             var existing = list.querySelectorAll('input[type=hidden]');
             for (var e = 0; e < existing.length; e++) { if (existing[e].value === sel.value) { sel.value = ''; return; } }
             var name = sel.options[sel.selectedIndex].text;
@@ -1950,18 +2030,21 @@ class AI_Chatboot_MS_Admin {
 
     private function render_analytics_dashboard() {
         global $wpdb;
-        $table = $wpdb->prefix . 'ai_chatbot_logs';
+        $table = esc_sql($wpdb->prefix . 'ai_chatbot_logs');
 
         // Check if table exists
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if (!$table_exists) {
             echo '<h2>' . esc_html(ai_chatboot_ms_t('admin_analytics_title')) . '</h2>';
             echo '<p>' . esc_html(ai_chatboot_ms_t('admin_analytics_no_table')) . '</p>';
+            // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
             return;
         }
 
         // Date range filter
-        $range = isset($_GET['range']) ? sanitize_key($_GET['range']) : '30';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only analytics filter parameter
+        $range = isset($_GET['range']) ? sanitize_key(wp_unslash((string) $_GET['range'])) : '30';
         $valid_ranges = ['1' => 'today', '7' => '7d', '30' => '30d', '90' => '90d', 'all' => 'all'];
         if (!isset($valid_ranges[$range])) $range = '30';
 
@@ -1982,53 +2065,53 @@ class AI_Chatboot_MS_Admin {
         }
 
         // Gather stats
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is safe, $date_where is prepared above
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $total_queries = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}`{$date_where}");
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $unique_sessions = (int) $wpdb->get_var("SELECT COUNT(DISTINCT session_id) FROM `{$table}`{$date_where}");
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $ai_queries = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE ai_used = 1{$date_where_and}");
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $cart_adds = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE added_to_cart = 1{$date_where_and}");
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $zero_results = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'search' AND results_count = 0{$date_where_and}");
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $search_total = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'search'{$date_where_and}");
         $cart_conversion = $search_total > 0 ? round(($cart_adds / $search_total) * 100, 1) : 0;
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $purchases = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE purchased = 1{$date_where_and}");
         $purchase_conversion = $search_total > 0 ? round(($purchases / $search_total) * 100, 1) : 0;
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $compare_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'compare'{$date_where_and}");
 
         // Funnel data
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $results_with_products = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'search' AND results_count > 0{$date_where_and}");
 
         // Daily activity for chart
         $chart_interval = $range === '1' ? 1 : max((int) $range, 30);
         if ($range === 'all') $chart_interval = 90;
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $daily = $wpdb->get_results($wpdb->prepare("SELECT DATE(created_at) as day, COUNT(*) as cnt, SUM(added_to_cart) as carts FROM `{$table}` WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY) GROUP BY DATE(created_at) ORDER BY day ASC", $chart_interval));
 
         // Query type breakdown
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $types = $wpdb->get_results("SELECT query_type, COUNT(*) as cnt FROM `{$table}`{$date_where} GROUP BY query_type ORDER BY cnt DESC");
 
         // Top searches
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $top_searches = $wpdb->get_results("SELECT query, COUNT(*) as cnt FROM `{$table}` WHERE query_type = 'search'{$date_where_and} GROUP BY query ORDER BY cnt DESC LIMIT 50");
 
         // Top zero-result searches
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $top_zero = $wpdb->get_results("SELECT query, COUNT(*) as cnt FROM `{$table}` WHERE query_type = 'search' AND results_count = 0{$date_where_and} GROUP BY query ORDER BY cnt DESC LIMIT 50");
 
         // Top products found & added to cart
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $top_products = $wpdb->get_results("SELECT top_product_id, COUNT(*) as found_cnt, SUM(added_to_cart) as cart_cnt FROM `{$table}` WHERE top_product_id > 0{$date_where_and} GROUP BY top_product_id ORDER BY found_cnt DESC LIMIT 30");
 
         // Compared products
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
         $compare_logs = $wpdb->get_results("SELECT query FROM `{$table}` WHERE query_type = 'compare'{$date_where_and}");
         $compared_product_counts = [];
         foreach ($compare_logs as $log) {
@@ -2040,12 +2123,13 @@ class AI_Chatboot_MS_Admin {
             }
         }
         arsort($compared_product_counts);
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         // CSV export nonce
         $csv_nonce = wp_create_nonce('msai_csv_export');
 
         // Build range links
-        $range_base = add_query_arg(['page' => 'ai-chatboot-ms'], admin_url('admin.php'));
+        $range_base = add_query_arg(['page' => 'bootflow-shop-assist'], admin_url('admin.php'));
 
         // Chart data — fill missing days with zeros so chart extends to today
         $daily_map = [];
@@ -2057,7 +2141,7 @@ class AI_Chatboot_MS_Admin {
         $chart_carts = [];
         $chart_days = ($range === 'all') ? 90 : (($range === '1') ? 1 : max((int) $range, 30));
         for ($i = $chart_days; $i >= 0; $i--) {
-            $day = date('Y-m-d', strtotime("-{$i} days"));
+            $day = gmdate('Y-m-d', strtotime("-{$i} days"));
             $chart_labels[] = $day;
             $chart_queries[] = $daily_map[$day]['cnt'] ?? 0;
             $chart_carts[] = $daily_map[$day]['carts'] ?? 0;
@@ -2346,95 +2430,15 @@ class AI_Chatboot_MS_Admin {
         </div><!-- .msai-tables-grid -->
         </div><!-- .msai-dash -->
 
-        <!-- Chart.js (local) -->
-        <script src="<?php echo esc_url(plugin_dir_url(dirname(__FILE__)) . 'assets/js/chart.min.js'); ?>"></script>
-        <script>
-        (function(){
-            // Chart
-            var ctx = document.getElementById('msai-daily-chart');
-            if (ctx && typeof Chart !== 'undefined') {
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: <?php echo wp_json_encode($chart_labels); ?>,
-                        datasets: [
-                            {
-                                label: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_queries')); ?>,
-                                data: <?php echo wp_json_encode($chart_queries); ?>,
-                                borderColor: '#2271b1',
-                                backgroundColor: 'rgba(34,113,177,0.08)',
-                                fill: true,
-                                tension: 0.3,
-                                pointRadius: 3
-                            },
-                            {
-                                label: '🛒',
-                                data: <?php echo wp_json_encode($chart_carts); ?>,
-                                borderColor: '#1a6b2a',
-                                backgroundColor: 'rgba(26,107,42,0.08)',
-                                fill: true,
-                                tension: 0.3,
-                                pointRadius: 3
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { intersect: false, mode: 'index' },
-                        scales: {
-                            y: { beginAtZero: true, ticks: { precision: 0 } },
-                            x: { ticks: { maxTicksAuto: true, maxRotation: 45 } }
-                        },
-                        plugins: { legend: { position: 'top' } }
-                    }
-                });
-            }
-
-            // Table pagination
-            var PER_PAGE = 10;
-            document.querySelectorAll('.msai-paginated').forEach(function(table){
-                var tbody = table.querySelector('tbody');
-                if (!tbody) return;
-                var rows = Array.from(tbody.querySelectorAll('tr'));
-                if (rows.length <= PER_PAGE) return;
-                var page = 0;
-                var totalPages = Math.ceil(rows.length / PER_PAGE);
-
-                function render() {
-                    rows.forEach(function(r, i) {
-                        r.style.display = (i >= page * PER_PAGE && i < (page + 1) * PER_PAGE) ? '' : 'none';
-                    });
-                    info.textContent = (page + 1) + ' / ' + totalPages;
-                    prev.disabled = page === 0;
-                    next.disabled = page >= totalPages - 1;
-                }
-
-                var nav = document.createElement('div');
-                nav.className = 'msai-pag';
-                var prev = document.createElement('button');
-                prev.textContent = '\u25C0';
-                prev.onclick = function() { if (page > 0) { page--; render(); } };
-                var next = document.createElement('button');
-                next.textContent = '\u25B6';
-                next.onclick = function() { if (page < totalPages - 1) { page++; render(); } };
-                var info = document.createElement('span');
-                nav.appendChild(prev);
-                nav.appendChild(info);
-                nav.appendChild(next);
-                table.parentNode.appendChild(nav);
-                render();
-            });
-
-            // CSV export
-            document.getElementById('msai-csv-export').addEventListener('click', function(e) {
-                e.preventDefault();
-                var url = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
-                url += '?action=ai_chatboot_ms_csv_export&nonce=<?php echo esc_js($csv_nonce); ?>&range=<?php echo esc_js($range); ?>';
-                window.location.href = url;
-            });
-        })();
-        </script>
+        <?php
+        $dashboard_js = '(function(){'
+            . 'var ctx=document.getElementById("msai-daily-chart");'
+            . 'if(ctx&&typeof Chart!=="undefined"){new Chart(ctx,{type:"line",data:{labels:' . wp_json_encode($chart_labels) . ',datasets:[{label:' . wp_json_encode(ai_chatboot_ms_t('admin_queries')) . ',data:' . wp_json_encode($chart_queries) . ',borderColor:"#2271b1",backgroundColor:"rgba(34,113,177,0.08)",fill:true,tension:0.3,pointRadius:3},{label:"Cart",data:' . wp_json_encode($chart_carts) . ',borderColor:"#1a6b2a",backgroundColor:"rgba(26,107,42,0.08)",fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},scales:{y:{beginAtZero:true,ticks:{precision:0}},x:{ticks:{maxTicksAuto:true,maxRotation:45}}},plugins:{legend:{position:"top"}}}});}'
+            . 'var PER_PAGE=10;document.querySelectorAll(".msai-paginated").forEach(function(table){var tbody=table.querySelector("tbody");if(!tbody)return;var rows=Array.from(tbody.querySelectorAll("tr"));if(rows.length<=PER_PAGE)return;var page=0;var totalPages=Math.ceil(rows.length/PER_PAGE);function render(){rows.forEach(function(r,i){r.style.display=(i>=page*PER_PAGE&&i<(page+1)*PER_PAGE)?"":"none";});info.textContent=(page+1)+" / "+totalPages;prev.disabled=page===0;next.disabled=page>=totalPages-1;}var nav=document.createElement("div");nav.className="msai-pag";var prev=document.createElement("button");prev.textContent="\u25C0";prev.onclick=function(){if(page>0){page--;render();}};var next=document.createElement("button");next.textContent="\u25B6";next.onclick=function(){if(page<totalPages-1){page++;render();}};var info=document.createElement("span");nav.appendChild(prev);nav.appendChild(info);nav.appendChild(next);table.parentNode.appendChild(nav);render();});'
+            . 'var csvBtn=document.getElementById("msai-csv-export");if(csvBtn){csvBtn.addEventListener("click",function(e){e.preventDefault();var url=' . wp_json_encode(admin_url('admin-ajax.php')) . ';url+="?action=ai_chatboot_ms_csv_export&nonce=' . esc_js($csv_nonce) . '&range=' . esc_js($range) . '";window.location.href=url;});}'
+            . '})();';
+        wp_add_inline_script('bootflow-shop-assist-admin', $dashboard_js, 'after');
+        ?>
         <?php
     }
 
@@ -2444,8 +2448,9 @@ class AI_Chatboot_MS_Admin {
         }
 
         global $wpdb;
-        $table = $wpdb->prefix . 'ai_chatbot_logs';
-        $range = isset($_GET['range']) ? sanitize_key($_GET['range']) : '30';
+        $table = esc_sql($wpdb->prefix . 'ai_chatbot_logs');
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce is already validated by check_ajax_referer above
+        $range = isset($_GET['range']) ? sanitize_key(wp_unslash((string) $_GET['range'])) : '30';
         $valid = ['1', '7', '30', '90', 'all'];
         if (!in_array($range, $valid, true)) $range = '30';
 
@@ -2459,22 +2464,34 @@ class AI_Chatboot_MS_Admin {
             $where = $wpdb->prepare(" WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)", $days);
         }
 
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is prefix-based, $where is prepared
         $rows = $wpdb->get_results("SELECT id, session_id, user_id, query, query_type, results_count, top_product_id, added_to_cart, purchased, ai_used, language, created_at FROM `{$table}`{$where} ORDER BY created_at DESC", ARRAY_A);
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         $filename = 'chatbot-analytics-' . $range . '-' . gmdate('Y-m-d') . '.csv';
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
 
-        $output = fopen('php://output', 'w');
         if (!empty($rows)) {
-            fputcsv($output, array_keys($rows[0]));
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV stream output is intentionally raw
+            echo $this->csv_join_line(array_keys($rows[0]));
             foreach ($rows as $row) {
-                fputcsv($output, $row);
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV stream output is intentionally raw
+                echo $this->csv_join_line($row);
             }
         }
-        fclose($output);
         exit;
+    }
+
+    private function csv_join_line(array $row) {
+        $escaped = [];
+        foreach ($row as $value) {
+            $str = (string) $value;
+            $str = str_replace('"', '""', $str);
+            $escaped[] = '"' . $str . '"';
+        }
+        return implode(',', $escaped) . "\r\n";
     }
 
     public function maybe_redirect_after_activation() {
@@ -2482,10 +2499,11 @@ class AI_Chatboot_MS_Admin {
             return;
         }
         delete_transient('ai_chatboot_ms_activated');
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only core activation flag
         if (wp_doing_ajax() || isset($_GET['activate-multi'])) {
             return;
         }
-        wp_safe_redirect(admin_url('admin.php?page=ai-chatboot-ms'));
+        wp_safe_redirect(admin_url('admin.php?page=bootflow-shop-assist'));
         exit;
     }
 }

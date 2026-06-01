@@ -1,5 +1,5 @@
 /* ============================================================
-   AI Chatboot MS — Premium Frosted-Glass UI
+   Shop Assist — Premium Frosted-Glass UI
    v1.4.0 — macOS-inspired Glassmorphism
    ============================================================ */
 
@@ -118,7 +118,7 @@
    Floating Action Button (FAB)
    ============================================================ */
 
-#ai-chatboot-ms-floating-btn {
+#bootflow-shop-assist-floating-btn {
     position: fixed;
     bottom: 24px;
     right: 24px;
@@ -140,18 +140,18 @@
     animation: msai-fab-entrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-#ai-chatboot-ms-floating-btn.hidden {
+#bootflow-shop-assist-floating-btn.hidden {
     display: none !important;
 }
 
-#ai-chatboot-ms-floating-btn:hover {
+#bootflow-shop-assist-floating-btn:hover {
     transform: scale(1.10);
     box-shadow:
         0 8px 28px rgba(99, 102, 241, 0.40),
         0 3px 10px rgba(99, 102, 241, 0.20);
 }
 
-#ai-chatboot-ms-floating-btn:active {
+#bootflow-shop-assist-floating-btn:active {
     transform: scale(0.95);
 }
 
@@ -159,7 +159,7 @@
    Main Chat Window — Frosted Glass container
    ============================================================ */
 
-#ai-chatboot-ms-chatbot {
+#bootflow-shop-assist-chatbot {
     position: fixed;
     bottom: 96px;
     right: 24px;
@@ -187,7 +187,7 @@
 
 /* Desktop full-size modal */
 @media (min-width: 768px) {
-    #ai-chatboot-ms-chatbot.modal-open {
+    #bootflow-shop-assist-chatbot.modal-open {
         top: 5%;
         left: 10%;
         width: 80%;
@@ -200,7 +200,7 @@
 
 /* Mobile modal */
 @media (max-width: 767px) {
-    #ai-chatboot-ms-chatbot.modal-open {
+    #bootflow-shop-assist-chatbot.modal-open {
         top: 0;
         left: 0;
         width: 100%;
@@ -211,7 +211,7 @@
         max-height: none;
     }
 
-    #ai-chatboot-ms-chatbot:not(.modal-open) {
+    #bootflow-shop-assist-chatbot:not(.modal-open) {
         width: calc(100vw - 16px);
         right: 8px;
         bottom: 88px;
@@ -293,10 +293,10 @@
 }
 
 /* Expand / Shrink icon toggling */
-#ai-chatboot-ms-chatbot:not(.modal-open) .msai-icon-shrink { display: none !important; }
-#ai-chatboot-ms-chatbot:not(.modal-open) .msai-icon-expand { display: inline !important; }
-#ai-chatboot-ms-chatbot.modal-open .msai-icon-shrink { display: inline !important; }
-#ai-chatboot-ms-chatbot.modal-open .msai-icon-expand { display: none !important; }
+#bootflow-shop-assist-chatbot:not(.modal-open) .msai-icon-shrink { display: none !important; }
+#bootflow-shop-assist-chatbot:not(.modal-open) .msai-icon-expand { display: inline !important; }
+#bootflow-shop-assist-chatbot.modal-open .msai-icon-shrink { display: inline !important; }
+#bootflow-shop-assist-chatbot.modal-open .msai-icon-expand { display: none !important; }
 
 .msai-close-btn {
     background: rgba(239, 68, 68, 0.10);
@@ -1006,7 +1006,7 @@
         padding: 10px;
     }
 
-    #ai-chatboot-ms-floating-btn {
+    #bootflow-shop-assist-floating-btn {
         bottom: 16px;
         right: 16px;
         width: 56px;
@@ -1015,7 +1015,7 @@
     }
 
     /* Reduce blur on mobile for performance */
-    #ai-chatboot-ms-chatbot {
+    #bootflow-shop-assist-chatbot {
         --msai-glass-blur: 14px;
         --msai-glass-saturate: 140%;
     }
@@ -1023,7 +1023,7 @@
 
 /* Older devices: disable blur entirely for performance */
 @supports not (backdrop-filter: blur(1px)) {
-    #ai-chatboot-ms-chatbot {
+    #bootflow-shop-assist-chatbot {
         background: rgba(255, 255, 255, 0.95);
     }
     .msai-modal-header,
@@ -1040,8 +1040,8 @@
    Utility — composited layers
    ============================================================ */
 
-#ai-chatboot-ms-chatbot,
-#ai-chatboot-ms-floating-btn {
+#bootflow-shop-assist-chatbot,
+#bootflow-shop-assist-floating-btn {
     will-change: transform;
 }
 

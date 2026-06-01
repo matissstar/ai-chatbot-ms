@@ -24,8 +24,8 @@
     "answer": "Ja čatbots nedarbojas mobilajā, bet desktop jā: (1) Iztīriet pārlūka kešatmiņu, (2) Pārbaudiet, vai HTTPS sertifikāts ir derīgs, (3) Atveriet Developer Console un pārbaudiet, vai nav JavaScript kļūdu. Ja problēma saglabājas, sazinieties ar atbalstu."
   },
   {
-    "question": "Kas ir 'Nevarēja iegūt API atslēgu' kļūda?",
-    "answer": "Šī kļūda nozīmē, ka čatbots nevar piekļūt OpenAI API atslēgai. Iemesli: (1) Novecojusi kešatmiņa, (2) Servera firewall bloķē pieprasījumu, (3) API atslēga nav saglabāta admin panelī. Risinājums: iztīriet cache, pārbaudiet iestatījumus Settings → AI Chatboot MS."
+    "question": "Ko darīt, ja redzu kļūdu čatā?",
+    "answer": "Parasti palīdz: (1) iztīrīt pārlūka kešatmiņu, (2) pārbaudīt HTTPS sertifikātu, (3) pārbaudīt JavaScript kļūdas Developer Console. Ja problēma saglabājas, sazinieties ar atbalstu."
   },
   {
     "question": "Kā iztīrīt cache mobilajā ierīcē?",

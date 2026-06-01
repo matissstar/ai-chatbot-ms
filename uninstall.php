@@ -53,18 +53,18 @@ delete_transient('ai_chatboot_ms_needs_export');
 delete_transient('ai_chatboot_ms_activated');
 
 // --- Delete products JSON file ---
-$json_path = get_option('ai_chatboot_ms_products_json_path');
-if (empty($json_path)) {
-    $upload_dir = wp_upload_dir();
-    $json_path = $upload_dir['basedir'] . '/ai-chatboot-products.json';
+$bootflow_shop_assist_json_path = get_option('ai_chatboot_ms_products_json_path');
+if (empty($bootflow_shop_assist_json_path)) {
+    $bootflow_shop_assist_upload_dir = wp_upload_dir();
+    $bootflow_shop_assist_json_path = $bootflow_shop_assist_upload_dir['basedir'] . '/ai-chatboot-products.json';
 }
-if ($json_path && file_exists($json_path)) {
-    @unlink($json_path);
+if ($bootflow_shop_assist_json_path && file_exists($bootflow_shop_assist_json_path)) {
+    wp_delete_file($bootflow_shop_assist_json_path);
 }
 
 // --- Drop analytics table ---
 global $wpdb;
-// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is prefix-based, not user input
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- uninstall removes plugin-owned analytics table
 $wpdb->query("DROP TABLE IF EXISTS `{$wpdb->prefix}ai_chatbot_logs`");
 
 // --- Clear all scheduled cron hooks ---
@@ -73,8 +73,8 @@ wp_clear_scheduled_hook('ai_chatboot_ms_check_export');
 wp_clear_scheduled_hook('ai_chatboot_ms_export_products');
 
 /**
- * Hook: ai_chatbot_ms_uninstall
- * PRO uses this to clean up its own options and data.
+ * Hook: bootflow_shop_assist_uninstall
+ * Add-ons can clean up their own options and data.
  */
-do_action('ai_chatbot_ms_uninstall');
+do_action('bootflow_shop_assist_uninstall');
 ?>

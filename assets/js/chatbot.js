@@ -1,4 +1,4 @@
-// AI Chatbot MS JavaScript
+// Shop Assistant JavaScript
 (function($) {
     "use strict";
     
@@ -34,7 +34,7 @@
     let audioLevelRAF = null;
     let listeningMsgShown = false;
 
-    // Browser detection: only real Chrome gets Web Speech API (free), others go to Google Cloud STT
+    // Browser speech recognition is used only when the browser supports it.
     let isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     let useWebSpeech = (function() {
         var ua = navigator.userAgent || '';
@@ -107,7 +107,7 @@
     // Initialize chatbot
     function initChatbot() {
         // Floating button click handler
-        $('#ai-chatboot-ms-floating-btn').on('click', function() {
+        $('#bootflow-shop-assist-floating-btn').on('click', function() {
             toggleModal();
         });
 
@@ -185,11 +185,11 @@
 
         // Close chatbot when clicking outside (only for desktop in full-size mode)
         $(document).on('click', function(e) {
-            var modal = $('#ai-chatboot-ms-chatbot');
+            var modal = $('#bootflow-shop-assist-chatbot');
             // If clicked element was removed from DOM (e.g. "Show More" button replaced),
             // it's not an outside click — ignore it
             if (!document.body.contains(e.target)) return;
-            if ($(window).width() >= 768 && modal.hasClass('modal-open') && !$(e.target).closest('#ai-chatboot-ms-chatbot, #ai-chatboot-ms-floating-btn').length) {
+            if ($(window).width() >= 768 && modal.hasClass('modal-open') && !$(e.target).closest('#bootflow-shop-assist-chatbot, #bootflow-shop-assist-floating-btn').length) {
                 toggleModalSize(); // Shrink to small, don't close
             }
         });
@@ -208,7 +208,7 @@
 
     // Toggle modal visibility
     function toggleModal() {
-        const modal = $('#ai-chatboot-ms-chatbot');
+        const modal = $('#bootflow-shop-assist-chatbot');
         if (modal.is(':visible')) {
             closeModal();
         } else {
@@ -218,7 +218,7 @@
 
     // Open modal
     function openModal() {
-        const modal = $('#ai-chatboot-ms-chatbot');
+        const modal = $('#bootflow-shop-assist-chatbot');
         modal.addClass('modal-open').show();
         updateToggleTitle();
         // Scroll to pending product card or restore scroll position
@@ -235,7 +235,7 @@
         }
         $('#msai-q').focus();
         // Hide floating button(s) when modal is open (defensive: handle duplicates)
-        $('[id="ai-chatboot-ms-floating-btn"]').each(function() {
+        $('[id="bootflow-shop-assist-floating-btn"]').each(function() {
             try {
                 $(this).addClass('hidden');
                 this.style.setProperty('display', 'none', 'important');
@@ -245,11 +245,11 @@
 
     // Close modal — hides window completely, shows floating button
     function closeModal() {
-        const modal = $('#ai-chatboot-ms-chatbot');
+        const modal = $('#bootflow-shop-assist-chatbot');
         saveScrollOnly();
         modal.removeClass('modal-open').hide();
         // Show floating button when modal is fully closed
-        $('[id="ai-chatboot-ms-floating-btn"]').each(function() {
+        $('[id="bootflow-shop-assist-floating-btn"]').each(function() {
             try {
                 $(this).removeClass('hidden');
                 this.style.setProperty('display', 'flex', 'important');
@@ -259,7 +259,7 @@
 
     // Toggle modal size — switches between full-size and compact, window stays visible
     function toggleModalSize() {
-        const modal = $('#ai-chatboot-ms-chatbot');
+        const modal = $('#bootflow-shop-assist-chatbot');
         modal.toggleClass('modal-open');
         updateToggleTitle();
         // Re-scroll to pending product when expanding
@@ -273,7 +273,7 @@
     // Update the minimize/maximize button tooltip
     function updateToggleTitle() {
         var btn = $('#msai-minimize');
-        if ($('#ai-chatboot-ms-chatbot').hasClass('modal-open')) {
+        if ($('#bootflow-shop-assist-chatbot').hasClass('modal-open')) {
             btn.attr('title', t('btn_minimize_title'));
         } else {
             btn.attr('title', t('btn_maximize_title'));
@@ -707,7 +707,7 @@
         return tmp.innerHTML;
     }
 
-    // Display handoff contact buttons below AI response
+    // Display handoff contact buttons below automated response
     function displayHandoffButtons(handoff, userQuery) {
         // Strict mode: disable external handoff button rendering.
         return;
@@ -1965,7 +1965,7 @@
             }
             audioLevelRAF = requestAnimationFrame(updateLevel);
         }).catch(function() {
-            // Mic not available — no visual feedback, still record via Web Speech API
+            // Mic not available — skip the audio-level animation.
         });
     }
 
@@ -1978,28 +1978,17 @@
         if (btn) { btn.style.boxShadow = ''; btn.style.transform = ''; }
     }
 
-    // Start voice recording — Web Speech API for Chrome, Google Cloud STT for others
+    // Start browser-based voice recognition when supported.
     function startRecording() {
-        var hasGoogleFallback = ai_chatboot_ms_ajax.has_google_speech === '1';
-
-        // Non-Chrome browsers or previously failed → go directly to Google STT
         if (!useWebSpeech) {
-            if (hasGoogleFallback) {
-                startGoogleRecording();
-            } else {
-                addMessageToLog('bot', t('voice_not_supported'), true);
-            }
+            addMessageToLog('bot', t('voice_not_supported'), true);
             return;
         }
 
         var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             useWebSpeech = false;
-            if (hasGoogleFallback) {
-                startGoogleRecording();
-            } else {
-                addMessageToLog('bot', t('voice_not_supported'), true);
-            }
+            addMessageToLog('bot', t('voice_not_supported'), true);
             return;
         }
         if (isRecording) return;
@@ -2058,18 +2047,12 @@
         };
 
         var srOnError = function(event) {
-            // If browser Speech API fails and Google fallback is available — switch silently
-            // Remember failure so next time we go directly to Google (no flicker)
             if (event.error === 'network' || event.error === 'service-not-allowed') {
                 useWebSpeech = false;
-                voiceStopIntentional = true; // prevent srOnEnd from auto-restarting
+                voiceStopIntentional = true;
                 isRecording = false;
-                if (hasGoogleFallback) {
-                    startGoogleRecording();
-                } else {
-                    $('#msai-smart-btn').text(t('btn_voice')).removeClass('msai-recording');
-                    addMessageToLog('bot', t('voice_not_supported'), true);
-                }
+                $('#msai-smart-btn').text(t('btn_voice')).removeClass('msai-recording');
+                addMessageToLog('bot', t('voice_not_supported'), true);
                 return;
             }
             // Fatal errors — show message, stop
@@ -2111,17 +2094,11 @@
 
                 // If session lasted < 500ms and we've restarted too many times → stop
                 if (timeSinceStart < 500 && srRestartCount > srMaxRestarts) {
-                    // Web Speech is broken on this device — fall back to Google or stop
                     isRecording = false;
-                    var hasGoogle = ai_chatboot_ms_ajax.has_google_speech === '1';
-                    if (hasGoogle) {
-                        useWebSpeech = false;
-                        startGoogleRecording();
-                    } else {
-                        $('#msai-smart-btn').text(t('btn_voice')).removeClass('msai-recording').prop('disabled', false);
-                        var text = accumulatedTranscript.trim() || ($('#msai-q').val() || '').trim();
-                        if (text) handleVoiceResult(text);
-                    }
+                    useWebSpeech = false;
+                    $('#msai-smart-btn').text(t('btn_voice')).removeClass('msai-recording').prop('disabled', false);
+                    var text = accumulatedTranscript.trim() || ($('#msai-q').val() || '').trim();
+                    if (text) handleVoiceResult(text);
                     return;
                 }
 
@@ -2188,219 +2165,6 @@
         }
     }
 
-    // Google Cloud Speech-to-Text fallback via MediaRecorder
-    function startGoogleRecording() {
-        if (isRecording) return;
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            addMessageToLog('bot', t('voice_not_supported'), true);
-            return;
-        }
-
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-            isRecording = true;
-            $('#msai-smart-btn').text(t('voice_stop')).addClass('msai-recording');
-
-            // Start audio analyser for visual feedback + silence detection
-            var googleAnalyserReady = false;
-            var timeDomainData = null;
-            try {
-                audioStream = stream;
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                var source = audioContext.createMediaStreamSource(stream);
-                audioAnalyser = audioContext.createAnalyser();
-                audioAnalyser.fftSize = 512;
-                audioAnalyser.smoothingTimeConstant = 0.3;
-                source.connect(audioAnalyser);
-                googleAnalyserReady = true;
-                timeDomainData = new Uint8Array(audioAnalyser.fftSize);
-
-                var freqData = new Uint8Array(audioAnalyser.frequencyBinCount);
-                var btn = document.getElementById('msai-smart-btn');
-
-                function updateGoogleLevel() {
-                    if (!isRecording) return;
-                    audioAnalyser.getByteFrequencyData(freqData);
-                    var sum = 0;
-                    for (var i = 0; i < freqData.length; i++) sum += freqData[i];
-                    var avg = sum / freqData.length;
-                    var level = Math.min(1, avg / 80);
-
-                    if (btn) {
-                        var glow = Math.round(4 + level * 16);
-                        var scale = 1 + level * 0.08;
-                        btn.style.boxShadow = '0 0 ' + glow + 'px ' + Math.round(glow / 2) + 'px rgba(239,68,68,' + (0.3 + level * 0.5) + ')';
-                        btn.style.transform = 'scale(' + scale + ')';
-                    }
-                    audioLevelRAF = requestAnimationFrame(updateGoogleLevel);
-                }
-                audioLevelRAF = requestAnimationFrame(updateGoogleLevel);
-            } catch(e) {
-                // Audio level monitor failed — not critical
-            }
-
-            // --- RMS-based noise floor calibration + silence detection ---
-            // Uses getByteTimeDomainData (waveform) → RMS calculation
-            // More reliable across Firefox/Brave/Safari than getByteFrequencyData
-            var silenceMs = (parseInt(ai_chatboot_ms_ajax.voice_silence, 10) || 4) * 1000;
-            var googleSilenceActive = true;
-            var noiseFloor = 0;
-            var noiseCalibrated = false;
-            var noiseSamples = [];
-            var calibrationStart = Date.now();
-            var recordingStart = Date.now();
-            var lastSpeechTime = 0;
-            var speechDetected = false;
-            var maxRecordingMs = 30000; // hard max 30 sec safety net
-
-            function getRMS() {
-                if (!googleAnalyserReady || !audioAnalyser || !timeDomainData) return -1;
-                audioAnalyser.getByteTimeDomainData(timeDomainData);
-                var sumSquares = 0;
-                for (var i = 0; i < timeDomainData.length; i++) {
-                    var val = (timeDomainData[i] - 128) / 128; // normalize to -1..1
-                    sumSquares += val * val;
-                }
-                return Math.sqrt(sumSquares / timeDomainData.length);
-            }
-
-            function stopGoogleMediaRecorder() {
-                googleSilenceActive = false;
-                if (window._msaiMediaRecorder && window._msaiMediaRecorder.state === 'recording') {
-                    window._msaiMediaRecorder.stop();
-                }
-            }
-
-            var silenceCheckInterval = setInterval(function() {
-                if (!isRecording || !googleSilenceActive) {
-                    clearInterval(silenceCheckInterval);
-                    return;
-                }
-
-                // Hard max timeout safety net
-                if (Date.now() - recordingStart > maxRecordingMs) {
-                    clearInterval(silenceCheckInterval);
-                    stopGoogleMediaRecorder();
-                    return;
-                }
-
-                var rms = getRMS();
-                if (rms < 0) {
-                    // Analyser not available — fallback: stop after silenceMs from start
-                    if (Date.now() - recordingStart > silenceMs + 2000) {
-                        clearInterval(silenceCheckInterval);
-                        stopGoogleMediaRecorder();
-                    }
-                    return;
-                }
-
-                // Phase 1: calibration (first ~0.8 second — collect noise floor)
-                if (!noiseCalibrated) {
-                    noiseSamples.push(rms);
-                    if (Date.now() - calibrationStart >= 800) {
-                        var sum = 0;
-                        for (var i = 0; i < noiseSamples.length; i++) sum += noiseSamples[i];
-                        noiseFloor = noiseSamples.length > 0 ? sum / noiseSamples.length : 0;
-                        noiseCalibrated = true;
-                        lastSpeechTime = Date.now();
-                        if (!listeningMsgShown) {
-                            listeningMsgShown = true;
-                            addMessageToLog('bot', t('voice_listening'), true);
-                            $('#msai-log').scrollTop($('#msai-log')[0].scrollHeight);
-                        }
-                    }
-                    return;
-                }
-
-                // Phase 2: speech/silence detection
-                // RMS threshold = noise floor * 2 + minimum bump
-                var threshold = Math.max(noiseFloor * 2, noiseFloor + 0.01, 0.015);
-
-                if (rms > threshold) {
-                    lastSpeechTime = Date.now();
-                    speechDetected = true;
-                } else if (speechDetected && Date.now() - lastSpeechTime > silenceMs) {
-                    // Silence after speech → stop
-                    clearInterval(silenceCheckInterval);
-                    stopGoogleMediaRecorder();
-                }
-            }, 100);
-
-            var mimeType = 'audio/webm;codecs=opus';
-            if (!window.MediaRecorder || !MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = 'audio/webm';
-                if (!window.MediaRecorder || !MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = 'audio/mp4';
-                }
-            }
-
-            var mediaRecorder;
-            try {
-                mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-            } catch(e) {
-                mediaRecorder = new MediaRecorder(stream);
-            }
-            var audioChunks = [];
-
-            mediaRecorder.ondataavailable = function(event) {
-                if (event.data.size > 0) audioChunks.push(event.data);
-            };
-
-            mediaRecorder.onstop = function() {
-                clearInterval(silenceCheckInterval);
-                // Don't stop stream tracks here — stopAudioLevelMonitor will do it
-                isRecording = false;
-                stopAudioLevelMonitor();
-                $('#msai-smart-btn').text(t('btn_voice')).removeClass('msai-recording').prop('disabled', false);
-
-                if (audioChunks.length === 0) {
-                    // No audio captured — don't show error
-                    return;
-                }
-
-                var audioBlob = new Blob(audioChunks, { type: mimeType });
-                var formData = new FormData();
-                formData.append('action', 'ai_chatboot_ms_speech');
-                formData.append('nonce', ai_chatboot_ms_ajax.nonce);
-                formData.append('audio', audioBlob, 'recording.webm');
-                formData.append('language', t('speech_lang'));
-
-                addMessageToLog('bot', t('voice_processing'), true);
-
-                $.ajax({
-                    url: ai_chatboot_ms_ajax.ajax_url,
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    timeout: 30000,
-                    success: function(response) {
-                        if (response.success && response.data && response.data.transcription) {
-                            handleVoiceResult(response.data.transcription);
-                        } else {
-                            var errMsg = (response.data && response.data.text) ? response.data.text : t('voice_no_result');
-                            addMessageToLog('bot', errMsg, true);
-                        }
-                    },
-                    error: function() {
-                        addMessageToLog('bot', t('voice_blocked'), true);
-                    }
-                });
-            };
-
-            // Store reference BEFORE start so silence detector and stopRecording() can find it
-            window._msaiMediaRecorder = mediaRecorder;
-            mediaRecorder.start();
-
-        }).catch(function(err) {
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                addMessageToLog('bot', t('voice_no_mic'), true);
-            } else {
-                addMessageToLog('bot', t('voice_not_supported'), true);
-            }
-        });
-    }
-
     // Voice countdown for delayed mode
     function startVoiceCountdown() {
         cancelVoiceCountdown();
@@ -2443,9 +2207,6 @@
         if (speechRecognition && isRecording) {
             speechRecognition.stop();
         }
-        if (window._msaiMediaRecorder && window._msaiMediaRecorder.state === 'recording') {
-            window._msaiMediaRecorder.stop();
-        }
         isRecording = false;
         stopAudioLevelMonitor();
         $('#msai-smart-btn').removeClass('msai-recording').prop('disabled', false);
@@ -2471,13 +2232,13 @@
         }
 
         // Ensure floating button exists
-        if ($('#ai-chatboot-ms-floating-btn').length === 0) {
+        if ($('#bootflow-shop-assist-floating-btn').length === 0) {
             var wlIcon = ai_chatboot_ms_ajax.wl_icon || '💬';
-            $('body').append('<div id="ai-chatboot-ms-floating-btn">' + wlIcon + '</div>');
+            $('body').append('<div id="bootflow-shop-assist-floating-btn">' + wlIcon + '</div>');
         }
 
         // Dedupe: remove extra floating buttons injected by other scripts
-        var duplicateBtns = $('[id="ai-chatboot-ms-floating-btn"]');
+        var duplicateBtns = $('[id="bootflow-shop-assist-floating-btn"]');
         if (duplicateBtns.length > 1) {
             duplicateBtns.not(':first').remove();
         }
@@ -2500,7 +2261,7 @@
             } else if (reopenMode === 'link') {
                 // Desktop: show minimized (visible but compact)
                 if ($(window).width() >= 768) {
-                    var modal = $('#ai-chatboot-ms-chatbot');
+                    var modal = $('#bootflow-shop-assist-chatbot');
                     modal.removeClass('modal-open').show();
                     updateToggleTitle();
                     // Scroll to the clicked product card
@@ -2515,7 +2276,7 @@
                             pendingScrollPos = null;
                         }, 50);
                     }
-                    $('[id="ai-chatboot-ms-floating-btn"]').each(function() {
+                    $('[id="bootflow-shop-assist-floating-btn"]').each(function() {
                         try {
                             $(this).addClass('hidden');
                             this.style.setProperty('display', 'none', 'important');
@@ -2527,7 +2288,7 @@
         }
         // Save scroll position when navigating away
         $(window).on('beforeunload', function() {
-            if ($('#ai-chatboot-ms-chatbot').is(':visible')) {
+            if ($('#bootflow-shop-assist-chatbot').is(':visible')) {
                 saveScrollOnly();
             }
         });
@@ -2535,11 +2296,11 @@
     });
 
     } catch (error) {
-        console.error('[AI CHATBOT] Fatal error:', error);
+        console.error('[SHOP ASSISTANT] Fatal error:', error);
         // Try to show button even if script fails
         setTimeout(function() {
-            if (typeof jQuery !== 'undefined' && jQuery('#ai-chatboot-ms-floating-btn').length === 0) {
-                jQuery('body').append('<div id="ai-chatboot-ms-floating-btn">💬</div>');
+            if (typeof jQuery !== 'undefined' && jQuery('#bootflow-shop-assist-floating-btn').length === 0) {
+                jQuery('body').append('<div id="bootflow-shop-assist-floating-btn">💬</div>');
             }
         }, 1000);
     }

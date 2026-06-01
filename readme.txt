@@ -1,8 +1,8 @@
 === Bootflow Shop Assist for WooCommerce ===
-Contributors: bootflow
+Contributors: bootflowio
 Tags: woocommerce, chatbot, product search, shop assistant, live chat
 Requires at least: 5.8
-Tested up to: 6.7
+Tested up to: 7.0
 Requires PHP: 7.4
 Stable tag: 2.0.0
 License: GPLv2 or later
@@ -17,7 +17,7 @@ Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce s
 
 * **Smart Product Search** — Keyword and fuzzy matching across product titles, descriptions, categories, tags, SKUs, and custom fields.
 * **Product Comparison** — Side-by-side comparison of multiple products with attributes, prices, and stock status.
-* **Voice Input** — Built-in browser-based speech recognition (Web Speech API).
+* **Voice Input** — Built-in browser-based speech recognition where supported.
 * **Analytics Dashboard** — Track search queries, conversion rates, top products, and zero-result searches.
 * **Custom Responses** — Define keyword-triggered custom responses for FAQs, promotions, or store policies.
 * **Starter Questions** — Pre-configured quick-action buttons to guide customers.
@@ -30,7 +30,8 @@ Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce s
 
 **Privacy First:**
 
-* Core search and chatbot logic run locally in the FREE version.
+* Core search and chatbot logic run locally on your WordPress site.
+* This plugin does not include external provider integrations.
 * No cookies and no embedded analytics scripts.
 * The plugin package is self-contained for core features.
 
@@ -59,9 +60,9 @@ The unminified source of the plugin's own JavaScript (`chatbot.js`) is included 
 
 == Frequently Asked Questions ==
 
-= Does this plugin require remote APIs? =
+= Does this plugin require remote services? =
 
-Core product search logic runs locally on your WordPress site.
+No. Product search and chatbot logic run locally on your WordPress site.
 
 = Does it work without WooCommerce? =
 

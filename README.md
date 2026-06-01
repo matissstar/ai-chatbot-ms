@@ -1,2 +1,2 @@
-# ai-chatbot-ms
-AI woocommerce smart chatboot 
+# bootflow-shop-assist
+WooCommerce smart shop assistant plugin.
