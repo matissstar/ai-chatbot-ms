@@ -315,7 +315,6 @@ class Bootflow_Shop_Assist_Chatbot {
                 $keywords = array_map('trim', explode(',', mb_strtolower($cr['keywords'] ?? '')));
                 foreach ($keywords as $kw) {
                     if ($kw !== '' && mb_strpos($lower, $kw) !== false) {
-                        $this->log_query($message, 'custom');
                         wp_send_json_success(['text' => $cr['response']]);
                         return;
                     }
@@ -328,7 +327,6 @@ class Bootflow_Shop_Assist_Chatbot {
         foreach ($delivery_kw as $dkw) {
             if ($dkw !== '' && mb_strpos($lower, $dkw) !== false) {
                 $delivery_info = $this->get_delivery_info();
-                $this->log_query($message, 'delivery');
                 wp_send_json_success(['text' => $delivery_info]);
                 return;
             }
@@ -339,7 +337,6 @@ class Bootflow_Shop_Assist_Chatbot {
         foreach ($contact_kw as $ckw) {
             if ($ckw !== '' && mb_strpos($lower, $ckw) !== false) {
                 $contact_info = $this->get_contact_info();
-                $this->log_query($message, 'contact');
                 wp_send_json_success(['text' => $contact_info]);
                 return;
             }
@@ -353,7 +350,6 @@ class Bootflow_Shop_Assist_Chatbot {
         }
         if ($is_gift) {
             $products = $this->get_gift_products($message);
-            $this->log_query($message, 'gift', count($products));
             wp_send_json_success([
                 'mode' => 'gift_suggestions',
                 'text' => ai_chatboot_ms_t('be_gift_ideas'),
@@ -365,7 +361,6 @@ class Bootflow_Shop_Assist_Chatbot {
         $keyword_results = $this->search_products($message);
         if (!empty($keyword_results)) {
             $top_id = isset($keyword_results[0]['id']) ? $keyword_results[0]['id'] : null;
-            $this->log_query($message, 'search', count($keyword_results), $top_id);
             wp_send_json_success([
                 'text' => ai_chatboot_ms_t('be_some_options'),
                 'products' => $keyword_results
@@ -389,7 +384,6 @@ class Bootflow_Shop_Assist_Chatbot {
         }
 
         // No results found
-        $this->log_query($message, 'search', 0);
         wp_send_json_success([
             'text' => ai_chatboot_ms_t('be_query_unclear')
         ]);
@@ -895,7 +889,6 @@ class Bootflow_Shop_Assist_Chatbot {
             ];
         }
 
-        $this->log_query(implode(',', array_map('intval', $product_ids)), 'compare', count($products));
         wp_send_json_success(['comparison' => $comparison]);
     }
 
@@ -1175,38 +1168,4 @@ class Bootflow_Shop_Assist_Chatbot {
         ]);
     }
 
-    /**
-     * Log a chatbot query to the analytics table (no personal data stored).
-     */
-    private function log_query($query, $query_type, $results_count = 0, $top_product_id = null) {
-        if (wp_doing_ajax() && !check_ajax_referer('ai_chatboot_ms_nonce', 'nonce', false)) {
-            return;
-        }
-
-        global $wpdb;
-        $table = esc_sql($wpdb->prefix . 'ai_chatbot_logs');
-
-        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) return;
-
-        $session_id = isset($_POST['session_id']) ? sanitize_text_field(wp_unslash((string) $_POST['session_id'])) : '';
-        if (empty($session_id)) {
-            $session_id = substr(md5(uniqid('', true)), 0, 32);
-        }
-
-        $language = function_exists('ai_chatboot_ms_get_language') ? ai_chatboot_ms_get_language() : '';
-
-        $wpdb->insert($table, [
-            'session_id'     => $session_id,
-            'query'          => mb_substr($query, 0, 500),
-            'query_type'     => $query_type,
-            'results_count'  => $results_count,
-            'top_product_id' => $top_product_id,
-            'added_to_cart'  => 0,
-            'ai_used'        => 0,
-            'language'       => $language,
-            'created_at'     => current_time('mysql'),
-        ], ['%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s']);
-        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-    }
 }

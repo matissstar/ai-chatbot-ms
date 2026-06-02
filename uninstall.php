@@ -9,7 +9,6 @@ delete_option('ai_chatboot_ms_excluded_tags');
 delete_option('ai_chatboot_ms_show_default_starters');
 delete_option('ai_chatboot_ms_auto_contact');
 delete_option('ai_chatboot_ms_gdpr_notice');
-delete_option('ai_chatboot_ms_db_version');
 
 // --- Colors & font ---
 delete_option('ai_chatboot_ms_color_palette');
@@ -62,13 +61,7 @@ if ($bootflow_shop_assist_json_path && file_exists($bootflow_shop_assist_json_pa
     wp_delete_file($bootflow_shop_assist_json_path);
 }
 
-// --- Drop analytics table ---
-global $wpdb;
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- uninstall removes plugin-owned analytics table
-$wpdb->query("DROP TABLE IF EXISTS `{$wpdb->prefix}ai_chatbot_logs`");
-
 // --- Clear all scheduled cron hooks ---
-wp_clear_scheduled_hook('ai_chatboot_ms_cleanup_logs');
 wp_clear_scheduled_hook('ai_chatboot_ms_check_export');
 wp_clear_scheduled_hook('ai_chatboot_ms_export_products');
 

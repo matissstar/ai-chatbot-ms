@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Bootflow Shop Assist for WooCommerce
- * Description: Product search assistant for WooCommerce with local search, voice input, comparison, and analytics.
+ * Description: Product search assistant for WooCommerce with local search, voice input, comparison, and custom responses.
  * Version: 2.0.0
  * Author: Bootflow.io
  * License: GPL v2 or later
@@ -134,48 +134,13 @@ require_once BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'includes/translations.php';
 require_once BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'includes/class-chatbot.php';
 require_once BOOTFLOW_SHOP_ASSIST_PLUGIN_DIR . 'includes/class-admin.php';
 
-// Create/update analytics table on activation
-function bootflow_shop_assist_create_tables() {
-    global $wpdb;
-    $table = $wpdb->prefix . 'ai_chatbot_logs';
-    $charset_collate = $wpdb->get_charset_collate();
-
-    $sql = "CREATE TABLE $table (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        session_id VARCHAR(32) NOT NULL DEFAULT '',
-        user_id BIGINT UNSIGNED DEFAULT NULL,
-        query VARCHAR(500) NOT NULL DEFAULT '',
-        query_type VARCHAR(20) NOT NULL DEFAULT 'search',
-        results_count INT NOT NULL DEFAULT 0,
-        top_product_id BIGINT UNSIGNED DEFAULT NULL,
-        added_to_cart TINYINT(1) NOT NULL DEFAULT 0,
-        purchased TINYINT(1) NOT NULL DEFAULT 0,
-        ai_used TINYINT(1) NOT NULL DEFAULT 0,
-        language VARCHAR(5) NOT NULL DEFAULT '',
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY idx_session (session_id),
-        KEY idx_created (created_at),
-        KEY idx_query_type (query_type)
-    ) $charset_collate;";
-
-    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-    dbDelta($sql);
-
-    update_option('ai_chatboot_ms_db_version', '1.1.0');
-}
-register_activation_hook(__FILE__, 'bootflow_shop_assist_create_tables');
-
 // Set redirect transient on activation
 register_activation_hook(__FILE__, function() {
     set_transient('ai_chatboot_ms_activated', true, 30);
 });
 
-// Schedule daily cleanup cron
+// Schedule export/update cron
 register_activation_hook(__FILE__, function() {
-    if (!wp_next_scheduled('ai_chatboot_ms_cleanup_logs')) {
-        wp_schedule_event(time(), 'daily', 'ai_chatboot_ms_cleanup_logs');
-    }
     if (!wp_next_scheduled('ai_chatboot_ms_export_products')) {
         wp_schedule_single_event(time() + 10, 'ai_chatboot_ms_export_products');
     }
@@ -205,25 +170,9 @@ add_action('ai_chatboot_ms_check_export', function() {
 
 // Remove cron on deactivation
 register_deactivation_hook(__FILE__, function() {
-    wp_clear_scheduled_hook('ai_chatboot_ms_cleanup_logs');
     wp_clear_scheduled_hook('ai_chatboot_ms_check_export');
     wp_clear_scheduled_hook('ai_chatboot_ms_export_products');
 });
-
-// Cleanup old logs
-add_action('ai_chatboot_ms_cleanup_logs', function() {
-    global $wpdb;
-    $table = $wpdb->prefix . 'ai_chatbot_logs';
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scheduled cleanup on plugin-owned table
-    $wpdb->query($wpdb->prepare("DELETE FROM `{$table}` WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)", 90));
-});
-
-// Check DB version on plugins_loaded
-add_action('plugins_loaded', function() {
-    if (get_option('ai_chatboot_ms_db_version') !== '1.1.0') {
-        bootflow_shop_assist_create_tables();
-    }
-}, 1);
 
 // Initialize the plugin
 add_action('plugins_loaded', function() {

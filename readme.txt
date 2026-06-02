@@ -2,12 +2,12 @@
 Contributors: bootflowio
 Tags: woocommerce, chatbot, product search, shop assistant, live chat
 Requires at least: 5.8
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 2.0.0
 License: GPLv2 or later
 
-Smart product search chatbot for WooCommerce — keyword & fuzzy matching, voice input, product comparison, and analytics.
+Smart product search assistant for WooCommerce — keyword & fuzzy matching, voice input, product comparison, and custom responses.
 
 == Description ==
 
@@ -18,7 +18,6 @@ Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce s
 * **Smart Product Search** — Keyword and fuzzy matching across product titles, descriptions, categories, tags, SKUs, and custom fields.
 * **Product Comparison** — Side-by-side comparison of multiple products with attributes, prices, and stock status.
 * **Voice Input** — Built-in browser-based speech recognition where supported.
-* **Analytics Dashboard** — Track search queries, conversion rates, top products, and zero-result searches.
 * **Custom Responses** — Define keyword-triggered custom responses for FAQs, promotions, or store policies.
 * **Starter Questions** — Pre-configured quick-action buttons to guide customers.
 * **Delivery & Contact Info** — Automatic delivery zone and contact information from WooCommerce settings.
@@ -26,7 +25,6 @@ Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce s
 * **White Label** — Customize chatbot name, icon, welcome message, and colors.
 * **Theme Customization** — 6 built-in color palettes or fully custom colors via color picker.
 * **Import/Export** — Full settings backup and restore.
-* **GDPR Ready** — Optional GDPR notice display before chat.
 
 **Privacy First:**
 
@@ -49,12 +47,6 @@ Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce s
 * PHP 7.4 or higher
 
 == Included Libraries ==
-
-This plugin includes the following bundled library:
-
-* **Chart.js** (v4.4.7) — Used for the analytics dashboard charts.
-  * License: MIT (GPL-compatible)
-  * Included locally in `assets/js/chart.min.js` and loaded from plugin files.
 
 The unminified source of the plugin's own JavaScript (`chatbot.js`) is included alongside the minified version (`chatbot.min.js`).
 
@@ -89,15 +81,13 @@ Yes. Go to **Shop Assist → Custom Responses** to define keyword-triggered answ
 1. Chatbot on the frontend with product search results.
 2. Product comparison view.
 3. Admin settings page — appearance and language.
-4. Analytics dashboard with search trends.
-5. Custom responses editor.
+4. Custom responses editor.
 
 == Changelog ==
 
 = 2.0.0 =
 * Reworked plugin architecture for maintainability.
 * Added product comparison.
-* Added analytics dashboard with local chart library.
 * Added custom response rules.
 * Added starter question buttons.
 * Added color palettes and custom color options.

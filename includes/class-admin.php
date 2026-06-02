@@ -16,7 +16,6 @@ class Bootflow_Shop_Assist_Admin {
         add_action('admin_post_save_custom_responses', [$this, 'handle_save_custom_responses']);
         add_action('admin_post_save_starter_questions', [$this, 'handle_save_starter_questions']);
         add_action('wp_ajax_ai_chatboot_ms_admin_product_search', [$this, 'ajax_admin_product_search']);
-        add_action('wp_ajax_ai_chatboot_ms_csv_export', [$this, 'ajax_csv_export']);
         add_action('admin_post_ai_chatboot_ms_export_settings', [$this, 'handle_export_settings']);
         add_action('admin_post_ai_chatboot_ms_import_settings', [$this, 'handle_import_settings']);
         add_action('admin_init', [$this, 'maybe_redirect_after_activation']);
@@ -33,14 +32,6 @@ class Bootflow_Shop_Assist_Admin {
             return;
         }
 
-        wp_enqueue_script(
-            'ai-chatbot-ms-chart',
-            plugin_dir_url(dirname(__FILE__)) . 'assets/js/chart.min.js',
-            [],
-            BOOTFLOW_SHOP_ASSIST_VERSION,
-            true
-        );
-
         wp_register_script('bootflow-shop-assist-admin', '', [], BOOTFLOW_SHOP_ASSIST_VERSION, true);
         wp_enqueue_script('bootflow-shop-assist-admin');
     }
@@ -54,47 +45,45 @@ class Bootflow_Shop_Assist_Admin {
     public function add_menu() {
         $menu_name = get_option('ai_chatboot_ms_wl_admin_name', '');
         if (empty($menu_name)) $menu_name = 'Bootflow Shop Assist';
+
         add_menu_page(
             $menu_name,
             $menu_name,
             'manage_options',
             'bootflow-shop-assist',
-            [$this, 'page_analytics'],
+            [$this, 'page_settings'],
             'dashicons-format-chat',
             56.5
         );
+
+        // Make the default first submenu item the Settings page with icon.
+        global $submenu;
+        if (isset($submenu['bootflow-shop-assist'][0])) {
+            $submenu['bootflow-shop-assist'][0][0] = '⚙️ ' . ai_chatboot_ms_t('admin_tab_settings');
+        }
+
         add_submenu_page(
             'bootflow-shop-assist',
-            '📊 ' . ai_chatboot_ms_t('admin_tab_analytics'),
-            '📊 ' . ai_chatboot_ms_t('admin_tab_analytics'),
-            'manage_options',
-            'bootflow-shop-assist',
-            [$this, 'page_analytics']
-        );
-        add_submenu_page(
-            'bootflow-shop-assist',
-            '💬 ' . ai_chatboot_ms_t('admin_tab_responses'),
-            '💬 ' . ai_chatboot_ms_t('admin_tab_responses'),
+            ai_chatboot_ms_t('admin_tab_responses'),
+            ai_chatboot_ms_t('admin_tab_responses'),
             'manage_options',
             'bootflow-shop-assist-responses',
-            [$this, 'page_responses']
+            [$this, 'page_responses'],
+            30
         );
-        add_submenu_page(
-            'bootflow-shop-assist',
-            '⚙️ ' . ai_chatboot_ms_t('admin_tab_settings'),
-            '⚙️ ' . ai_chatboot_ms_t('admin_tab_settings'),
-            'manage_options',
-            'bootflow-shop-assist-settings',
-            [$this, 'page_settings']
-        );
-        add_submenu_page(
-            'bootflow-shop-assist',
-            '⭐ Get PRO',
-            '⭐ Get PRO',
-            'manage_options',
-            'bootflow-shop-assist-get-pro',
-            [$this, 'page_get_pro']
-        );
+
+        // Show Get PRO only when PRO add-on is not installed/active.
+        if (!defined('BOOTFLOW_SHOP_ASSIST_PRO_ADDON_VERSION')) {
+            add_submenu_page(
+                'bootflow-shop-assist',
+                'Get PRO',
+                'Get PRO',
+                'manage_options',
+                'bootflow-shop-assist-get-pro',
+                [$this, 'page_get_pro'],
+                40
+            );
+        }
     }
 
     public function page_get_pro() {
@@ -320,14 +309,7 @@ class Bootflow_Shop_Assist_Admin {
     }
 
     public function page_analytics() {
-        $wl_admin_name = get_option('ai_chatboot_ms_wl_admin_name', '');
-        if (empty($wl_admin_name)) $wl_admin_name = 'Bootflow Shop Assist';
-        ?>
-        <div class="wrap">
-            <h1><?php echo esc_html($wl_admin_name); ?> — <?php echo esc_html(ai_chatboot_ms_t('admin_tab_analytics')); ?></h1>
-            <?php $this->render_analytics_dashboard(); ?>
-        </div>
-        <?php
+        $this->page_settings();
     }
 
     public function page_responses() {
@@ -1084,10 +1066,10 @@ class Bootflow_Shop_Assist_Admin {
                     }
 
                     $type = sanitize_key((string) ($item['type'] ?? 'text'));
-                    if ($type === 'ai') {
-                        $type = 'auto';
+                    if ($type === 'ai' || $type === 'auto') {
+                        $type = 'text';
                     }
-                    if (!in_array($type, ['text', 'search', 'auto', 'faq'], true)) {
+                    if (!in_array($type, ['text', 'search', 'faq'], true)) {
                         $type = 'text';
                     }
 
@@ -1137,17 +1119,9 @@ class Bootflow_Shop_Assist_Admin {
                             ];
                         }
                         $clean_item['search_products'] = $search_products;
-                    } elseif ($type === 'auto') {
-                        $clean_item['ai_prompt'] = trim(sanitize_textarea_field($item['ai_prompt'] ?? ''));
-                        $clean_item['ai_text'] = trim(wp_kses_post($item['ai_text'] ?? ''));
-                        $clean_item['ai_keywords'] = trim(sanitize_text_field($item['ai_keywords'] ?? ''));
-
-                        $raw_ai_cats = is_array($item['ai_cats'] ?? null) ? $item['ai_cats'] : [];
-                        $clean_item['ai_cats'] = array_values(array_filter(array_map('sanitize_text_field', $raw_ai_cats)));
                     } elseif ($type === 'faq') {
                         $clean_item['faq_page'] = absint($item['faq_page'] ?? 0);
                         $clean_item['faq_text'] = trim(wp_kses_post($item['faq_text'] ?? ''));
-                        $clean_item['faq_ai'] = !empty($item['faq_ai']);
                     }
 
                     $items[] = $clean_item;
@@ -1482,12 +1456,8 @@ class Bootflow_Shop_Assist_Admin {
             }
         }
         $search_texts = isset($_POST['sq_search_text']) ? array_map('wp_kses_post', wp_unslash((array) $_POST['sq_search_text'])) : [];
-        $ai_prompts = isset($_POST['sq_ai_prompt']) ? array_map('sanitize_textarea_field', wp_unslash((array) $_POST['sq_ai_prompt'])) : [];
-        $ai_texts   = isset($_POST['sq_ai_text'])   ? array_map('wp_kses_post', wp_unslash((array) $_POST['sq_ai_text'])) : [];
-        $ai_keywords = isset($_POST['sq_ai_keywords']) ? array_map('sanitize_text_field', wp_unslash((array) $_POST['sq_ai_keywords'])) : [];
         $faq_pages = isset($_POST['sq_faq_page']) ? array_map('absint', (array) wp_unslash($_POST['sq_faq_page'])) : [];
         $faq_texts = isset($_POST['sq_faq_text']) ? array_map('wp_kses_post', wp_unslash((array) $_POST['sq_faq_text'])) : [];
-        $faq_ais   = isset($_POST['sq_faq_ai'])   ? array_map('sanitize_text_field', (array) wp_unslash($_POST['sq_faq_ai'])) : [];
 
         $items = [];
         foreach ($questions as $i => $q) {
@@ -1515,17 +1485,12 @@ class Bootflow_Shop_Assist_Admin {
                     }
                 }
                 $item['search_products'] = $search_prods;
-            } elseif ($type === 'auto' || $type === 'ai') {
-                $type = 'auto';
-                $item['ai_prompt'] = trim($ai_prompts[$i] ?? '');
-                $item['ai_text'] = trim($ai_texts[$i] ?? '');
-                $item['ai_keywords'] = trim($ai_keywords[$i] ?? '');
-                $raw_ai_cats = isset($_POST['sq_ai_cats'][$i]) ? array_map('sanitize_text_field', wp_unslash((array) $_POST['sq_ai_cats'][$i])) : [];
-                $item['ai_cats'] = $raw_ai_cats;
             } elseif ($type === 'faq') {
                 $item['faq_page'] = $faq_pages[$i] ?? 0;
                 $item['faq_text'] = trim($faq_texts[$i] ?? '');
-                $item['faq_ai'] = !empty($faq_ais[$i]);
+            } else {
+                $item['type'] = 'text';
+                $item['text'] = trim($texts[$i] ?? '');
             }
             $items[] = $item;
         }
@@ -1543,8 +1508,8 @@ class Bootflow_Shop_Assist_Admin {
         $items = get_option('ai_chatboot_ms_starter_questions', []);
         if (!is_array($items)) $items = [];
         foreach ($items as &$item) {
-            if (isset($item['type']) && $item['type'] === 'ai') {
-                $item['type'] = 'auto';
+            if (isset($item['type']) && in_array($item['type'], ['ai', 'auto'], true)) {
+                $item['type'] = 'text';
             }
         }
         unset($item);
@@ -1699,7 +1664,6 @@ class Bootflow_Shop_Assist_Admin {
                             <select name="sq_type[]" class="msai-sq-type-select" onchange="msaiSqToggle(this)">
                                 <option value="text" <?php selected($item['type'], 'text'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_text')); ?></option>
                                 <option value="search" <?php selected($item['type'], 'search'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_search')); ?></option>
-                                <option value="auto" <?php selected($item['type'], 'auto'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_ai')); ?></option>
                                 <option value="faq" <?php selected($item['type'], 'faq'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_sq_type_faq')); ?></option>
                             </select>
 
@@ -1770,43 +1734,6 @@ class Bootflow_Shop_Assist_Admin {
                                 <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_faq_text_label')); ?></label>
                                 <textarea name="sq_faq_text[]" placeholder="<?php echo esc_attr(ai_chatboot_ms_t('admin_sq_faq_text_ph')); ?>"><?php echo esc_textarea($item['faq_text'] ?? ''); ?></textarea>
                                 <p class="description" style="margin-top:2px;font-size:12px;color:#646970;"><?php echo esc_html(ai_chatboot_ms_t('admin_sq_faq_text_desc')); ?></p>
-                                <label style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer">
-                                    <input type="checkbox" name="sq_faq_ai[<?php echo (int) $i; ?>]" value="1" <?php checked(!empty($item['faq_ai'])); ?>>
-                                    <?php echo esc_html(ai_chatboot_ms_t('admin_sq_faq_ai_label')); ?>
-                                </label>
-                                <p class="description" style="margin-top:2px;font-size:12px;color:#646970;"><?php echo esc_html(ai_chatboot_ms_t('admin_sq_faq_ai_desc')); ?></p>
-                            </div>
-
-                            <!-- Advanced prompt block -->
-                            <div class="msai-sq-block msai-sq-b-auto" style="<?php echo esc_attr($item['type'] !== 'auto' ? 'display:none' : ''); ?>">
-                                <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_text_label')); ?></label>
-                                <input type="text" name="sq_ai_text[]" value="<?php echo esc_attr($item['ai_text'] ?? ''); ?>" placeholder="<?php echo esc_attr(ai_chatboot_ms_t('admin_sq_ai_text_ph')); ?>">
-                                <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_prompt_label')); ?></label>
-                                <textarea name="sq_ai_prompt[]" placeholder="<?php echo esc_attr(ai_chatboot_ms_t('admin_sq_ai_prompt_ph')); ?>"><?php echo esc_textarea($item['ai_prompt'] ?? ''); ?></textarea>
-                                <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_keywords_label')); ?></label>
-                                <input type="text" name="sq_ai_keywords[]" value="<?php echo esc_attr($item['ai_keywords'] ?? ''); ?>" placeholder="<?php echo esc_attr(ai_chatboot_ms_t('admin_sq_ai_keywords_ph')); ?>">
-                                <p class="description" style="margin-top:2px;font-size:12px;color:#646970;"><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_keywords_desc')); ?></p>
-
-                                <label><?php echo esc_html(ai_chatboot_ms_t('admin_sq_ai_cats_label')); ?></label>
-                                <div class="msai-sq-cat-wrap" style="display:block">
-                                    <div class="msai-sq-cat-list msai-sq-auto-cat-list">
-                                        <?php foreach (($item['ai_cats'] ?? []) as $cat_slug): ?>
-                                            <?php $cat_name = $wc_cats_flat[$cat_slug] ?? $cat_slug; ?>
-                                            <span class="msai-sq-cat-tag"><?php echo esc_html($cat_name); ?><input type="hidden" name="sq_ai_cats[<?php echo (int) $i; ?>][]" value="<?php echo esc_attr($cat_slug); ?>"><span class="msai-sq-cat-remove" onclick="this.parentElement.remove()">✕</span></span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <select class="msai-sq-cat-select" onchange="msaiSqAddAutoCat(this, <?php echo (int) $i; ?>)">
-                                        <option value=""><?php echo esc_html(ai_chatboot_ms_t('admin_sq_select_category')); ?></option>
-                                        <?php foreach ($wc_cats_grouped as $group): ?>
-                                            <optgroup label="<?php echo esc_attr($group['name']); ?>">
-                                                <option value="<?php echo esc_attr($group['slug']); ?>"><?php echo esc_html($group['name']); ?> (<?php echo esc_html(ai_chatboot_ms_t('admin_sq_all_subcats')); ?>)</option>
-                                                <?php foreach ($group['children'] as $ch): ?>
-                                                    <option value="<?php echo esc_attr($ch['slug']); ?>"><?php echo esc_html($ch['name']); ?></option>
-                                                <?php endforeach; ?>
-                                            </optgroup>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -1828,15 +1755,12 @@ class Bootflow_Shop_Assist_Admin {
             type: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_type_label')); ?>,
             type_text: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_type_text')); ?>,
             type_search: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_type_search')); ?>,
-            type_ai: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_type_ai')); ?>,
             type_faq: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_type_faq')); ?>,
             faq_page_label: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_faq_page_label')); ?>,
             faq_page_none: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_faq_page_none')); ?>,
             faq_text_label: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_faq_text_label')); ?>,
             faq_text_ph: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_faq_text_ph')); ?>,
             faq_text_desc: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_faq_text_desc')); ?>,
-            faq_ai_label: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_faq_ai_label')); ?>,
-            faq_ai_desc: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_faq_ai_desc')); ?>,
             text_label: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_text_label')); ?>,
             search_text: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_search_text_label')); ?>,
             search_text_ph: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_search_text_ph')); ?>,
@@ -1847,14 +1771,6 @@ class Bootflow_Shop_Assist_Admin {
             mode_new: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_mode_new')); ?>,
             keyword_ph: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_keyword_ph')); ?>,
             select_cat: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_select_category')); ?>,
-            ai_text: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_text_label')); ?>,
-            ai_text_ph: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_text_ph')); ?>,
-            ai_prompt: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_prompt_label')); ?>,
-            ai_prompt_ph: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_prompt_ph')); ?>,
-            ai_keywords: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_keywords_label')); ?>,
-            ai_keywords_ph: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_keywords_ph')); ?>,
-            ai_keywords_desc: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_keywords_desc')); ?>,
-            ai_cats_label: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_ai_cats_label')); ?>,
             products_label: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_products_label')); ?>,
             products_ph: <?php echo wp_json_encode(ai_chatboot_ms_t('admin_sq_products_ph')); ?>
         };
@@ -1868,7 +1784,6 @@ class Bootflow_Shop_Assist_Admin {
             var item = sel.closest('.msai-sq-item');
             item.querySelector('.msai-sq-b-text').style.display = sel.value === 'text' ? '' : 'none';
             item.querySelector('.msai-sq-b-search').style.display = sel.value === 'search' ? '' : 'none';
-            item.querySelector('.msai-sq-b-auto').style.display = sel.value === 'auto' ? '' : 'none';
             item.querySelector('.msai-sq-b-faq').style.display = sel.value === 'faq' ? '' : 'none';
         }
         function msaiSqSearchMode(radio) {
@@ -1904,13 +1819,8 @@ class Bootflow_Shop_Assist_Admin {
                 });
                 var catSel = el.querySelector('.msai-sq-b-search .msai-sq-cat-select');
                 if (catSel) catSel.setAttribute('onchange', 'msaiSqAddCat(this, ' + i + ')');
-                var autoCatSel = el.querySelector('.msai-sq-b-auto .msai-sq-cat-select');
-                if (autoCatSel) autoCatSel.setAttribute('onchange', 'msaiSqAddAutoCat(this, ' + i + ')');
                 var prodInput = el.querySelector('.msai-sq-prod-input');
                 if (prodInput) prodInput.setAttribute('oninput', 'msaiSqProdSearch(this, ' + i + ')');
-                // FAQ checkbox
-                var faqCb = el.querySelector('.msai-sq-b-faq input[type=checkbox]');
-                if (faqCb) faqCb.name = 'sq_faq_ai[' + i + ']';
             });
         }
         function msaiSqAdd() {
@@ -1940,7 +1850,6 @@ class Bootflow_Shop_Assist_Admin {
                 + '<select name="sq_type[]" class="msai-sq-type-select" onchange="msaiSqToggle(this)">'
                 + '<option value="text">' + msaiSqLabels.type_text + '</option>'
                 + '<option value="search">' + msaiSqLabels.type_search + '</option>'
-                + '<option value="auto">' + msaiSqLabels.type_ai + '</option>'
                 + '<option value="faq">' + msaiSqLabels.type_faq + '</option></select>'
                 + '<div class="msai-sq-block msai-sq-b-text"><label>' + msaiSqLabels.text_label + '</label><textarea name="sq_text[]"></textarea></div>'
                 + '<div class="msai-sq-block msai-sq-b-search" style="display:none">'
@@ -1957,35 +1866,13 @@ class Bootflow_Shop_Assist_Admin {
                 + '<label>' + msaiSqLabels.products_label + '</label>'
                 + '<div class="msai-sq-prod-list"></div>'
                 + '<div class="msai-sq-prod-search-wrap"><input type="text" class="msai-sq-prod-input" placeholder="' + msaiSqLabels.products_ph + '" oninput="msaiSqProdSearch(this, ' + idx + ')" autocomplete="off"><div class="msai-sq-prod-results"></div></div></div>'
-                + '<div class="msai-sq-block msai-sq-b-auto" style="display:none">'
-                + '<label>' + msaiSqLabels.ai_text + '</label><input type="text" name="sq_ai_text[]" placeholder="' + msaiSqLabels.ai_text_ph + '">'
-                + '<label>' + msaiSqLabels.ai_prompt + '</label><textarea name="sq_ai_prompt[]" placeholder="' + msaiSqLabels.ai_prompt_ph + '"></textarea>'
-                + '<label>' + msaiSqLabels.ai_keywords + '</label><input type="text" name="sq_ai_keywords[]" placeholder="' + msaiSqLabels.ai_keywords_ph + '">'
-                + '<p class="description" style="margin-top:2px;font-size:12px;color:#646970;">' + msaiSqLabels.ai_keywords_desc + '</p>'
-                + '<label>' + msaiSqLabels.ai_cats_label + '</label>'
-                + '<div class="msai-sq-cat-wrap" style="display:block"><div class="msai-sq-cat-list msai-sq-auto-cat-list"></div>'
-                + '<select class="msai-sq-cat-select" onchange="msaiSqAddAutoCat(this, ' + idx + ')">' + catOpts + '</select></div></div>'
                 + '<div class="msai-sq-block msai-sq-b-faq" style="display:none">'
                 + '<label>' + msaiSqLabels.faq_page_label + '</label>'
                 + '<select name="sq_faq_page[]">' + faqPageOpts + '</select>'
                 + '<label>' + msaiSqLabels.faq_text_label + '</label><textarea name="sq_faq_text[]" placeholder="' + msaiSqLabels.faq_text_ph + '"></textarea>'
-                + '<p class="description" style="margin-top:2px;font-size:12px;color:#646970;">' + msaiSqLabels.faq_text_desc + '</p>'
-                + '<label style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer"><input type="checkbox" name="sq_faq_ai[' + idx + ']" value="1"> ' + msaiSqLabels.faq_ai_label + '</label>'
-                + '<p class="description" style="margin-top:2px;font-size:12px;color:#646970;">' + msaiSqLabels.faq_ai_desc + '</p></div>';
+                + '<p class="description" style="margin-top:2px;font-size:12px;color:#646970;">' + msaiSqLabels.faq_text_desc + '</p></div>';
             list.appendChild(div);
             div.querySelector('input').focus();
-        }
-        function msaiSqAddAutoCat(sel, idx) {
-            if (!sel.value) return;
-            var list = sel.closest('.msai-sq-cat-wrap').querySelector('.msai-sq-auto-cat-list');
-            var existing = list.querySelectorAll('input[type=hidden]');
-            for (var e = 0; e < existing.length; e++) { if (existing[e].value === sel.value) { sel.value = ''; return; } }
-            var name = sel.options[sel.selectedIndex].text;
-            var tag = document.createElement('span');
-            tag.className = 'msai-sq-cat-tag';
-            tag.innerHTML = name + '<input type="hidden" name="sq_ai_cats[' + idx + '][]" value="' + sel.value + '"><span class="msai-sq-cat-remove" onclick="this.parentElement.remove()">✕</span>';
-            list.appendChild(tag);
-            sel.value = '';
         }
         var msaiProdTimer = null;
         function msaiSqProdSearch(input, idx) {
@@ -2029,469 +1916,11 @@ class Bootflow_Shop_Assist_Admin {
     }
 
     private function render_analytics_dashboard() {
-        global $wpdb;
-        $table = esc_sql($wpdb->prefix . 'ai_chatbot_logs');
-
-        // Check if table exists
-        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
-        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-        if (!$table_exists) {
-            echo '<h2>' . esc_html(ai_chatboot_ms_t('admin_analytics_title')) . '</h2>';
-            echo '<p>' . esc_html(ai_chatboot_ms_t('admin_analytics_no_table')) . '</p>';
-            // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return;
-        }
-
-        // Date range filter
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only analytics filter parameter
-        $range = isset($_GET['range']) ? sanitize_key(wp_unslash((string) $_GET['range'])) : '30';
-        $valid_ranges = ['1' => 'today', '7' => '7d', '30' => '30d', '90' => '90d', 'all' => 'all'];
-        if (!isset($valid_ranges[$range])) $range = '30';
-
-        if ($range === 'all') {
-            $date_where = '';
-            $date_where_and = '';
-            $chart_days = 90;
-        } elseif ($range === '1') {
-            $date_where = " WHERE DATE(created_at) = CURDATE()";
-            $date_where_and = " AND DATE(created_at) = CURDATE()";
-            $chart_days = 1;
-        } else {
-            $days = (int) $range;
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is prefix-based, not user input
-            $date_where = $wpdb->prepare(" WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)", $days);
-            $date_where_and = $wpdb->prepare(" AND created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)", $days);
-            $chart_days = $days;
-        }
-
-        // Gather stats
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $total_queries = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}`{$date_where}");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $unique_sessions = (int) $wpdb->get_var("SELECT COUNT(DISTINCT session_id) FROM `{$table}`{$date_where}");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $ai_queries = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE ai_used = 1{$date_where_and}");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $cart_adds = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE added_to_cart = 1{$date_where_and}");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $zero_results = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'search' AND results_count = 0{$date_where_and}");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $search_total = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'search'{$date_where_and}");
-        $cart_conversion = $search_total > 0 ? round(($cart_adds / $search_total) * 100, 1) : 0;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $purchases = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE purchased = 1{$date_where_and}");
-        $purchase_conversion = $search_total > 0 ? round(($purchases / $search_total) * 100, 1) : 0;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $compare_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'compare'{$date_where_and}");
-
-        // Funnel data
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $results_with_products = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$table}` WHERE query_type = 'search' AND results_count > 0{$date_where_and}");
-
-        // Daily activity for chart
-        $chart_interval = $range === '1' ? 1 : max((int) $range, 30);
-        if ($range === 'all') $chart_interval = 90;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $daily = $wpdb->get_results($wpdb->prepare("SELECT DATE(created_at) as day, COUNT(*) as cnt, SUM(added_to_cart) as carts FROM `{$table}` WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY) GROUP BY DATE(created_at) ORDER BY day ASC", $chart_interval));
-
-        // Query type breakdown
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $types = $wpdb->get_results("SELECT query_type, COUNT(*) as cnt FROM `{$table}`{$date_where} GROUP BY query_type ORDER BY cnt DESC");
-
-        // Top searches
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $top_searches = $wpdb->get_results("SELECT query, COUNT(*) as cnt FROM `{$table}` WHERE query_type = 'search'{$date_where_and} GROUP BY query ORDER BY cnt DESC LIMIT 50");
-
-        // Top zero-result searches
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $top_zero = $wpdb->get_results("SELECT query, COUNT(*) as cnt FROM `{$table}` WHERE query_type = 'search' AND results_count = 0{$date_where_and} GROUP BY query ORDER BY cnt DESC LIMIT 50");
-
-        // Top products found & added to cart
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $top_products = $wpdb->get_results("SELECT top_product_id, COUNT(*) as found_cnt, SUM(added_to_cart) as cart_cnt FROM `{$table}` WHERE top_product_id > 0{$date_where_and} GROUP BY top_product_id ORDER BY found_cnt DESC LIMIT 30");
-
-        // Compared products
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom analytics query on plugin-owned table
-        $compare_logs = $wpdb->get_results("SELECT query FROM `{$table}` WHERE query_type = 'compare'{$date_where_and}");
-        $compared_product_counts = [];
-        foreach ($compare_logs as $log) {
-            $ids = array_filter(array_map('intval', explode(',', $log->query)));
-            foreach ($ids as $pid) {
-                if ($pid > 0) {
-                    $compared_product_counts[$pid] = ($compared_product_counts[$pid] ?? 0) + 1;
-                }
-            }
-        }
-        arsort($compared_product_counts);
-        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
-
-        // CSV export nonce
-        $csv_nonce = wp_create_nonce('msai_csv_export');
-
-        // Build range links
-        $range_base = add_query_arg(['page' => 'bootflow-shop-assist'], admin_url('admin.php'));
-
-        // Chart data — fill missing days with zeros so chart extends to today
-        $daily_map = [];
-        foreach ($daily as $d) {
-            $daily_map[$d->day] = ['cnt' => (int) $d->cnt, 'carts' => (int) $d->carts];
-        }
-        $chart_labels = [];
-        $chart_queries = [];
-        $chart_carts = [];
-        $chart_days = ($range === 'all') ? 90 : (($range === '1') ? 1 : max((int) $range, 30));
-        for ($i = $chart_days; $i >= 0; $i--) {
-            $day = gmdate('Y-m-d', strtotime("-{$i} days"));
-            $chart_labels[] = $day;
-            $chart_queries[] = $daily_map[$day]['cnt'] ?? 0;
-            $chart_carts[] = $daily_map[$day]['carts'] ?? 0;
-        }
-
-        ?>
-        <style>
-            .msai-dash { max-width: 1200px; }
-            .msai-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
-            .msai-range-btns { display: flex; gap: 4px; }
-            .msai-range-btns a { display: inline-block; padding: 6px 14px; border: 1px solid #c3c4c7; border-radius: 4px; text-decoration: none; color: #2271b1; font-size: 13px; font-weight: 500; background: #fff; }
-            .msai-range-btns a.active { background: #2271b1; color: #fff; border-color: #2271b1; }
-            .msai-range-btns a:hover { background: #f0f6fc; }
-            .msai-range-btns a.active:hover { background: #135e96; }
-            .msai-csv-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: 1px solid #c3c4c7; border-radius: 4px; text-decoration: none; color: #50575e; font-size: 13px; background: #fff; cursor: pointer; }
-            .msai-csv-btn:hover { background: #f0f6fc; color: #2271b1; }
-            .msai-stats {
-                display: grid;
-                grid-template-columns: repeat(5, 1fr);
-                gap: 12px;
-                margin: 0 0 20px;
-            }
-            @media (max-width: 1200px) { .msai-stats { grid-template-columns: repeat(3, 1fr); } }
-            @media (max-width: 782px)  { .msai-stats { grid-template-columns: repeat(2, 1fr); } }
-            .msai-stat-card {
-                background: #fff;
-                border: 1px solid #c3c4c7;
-                border-radius: 4px;
-                padding: 16px;
-                text-align: center;
-            }
-            .msai-stat-card .msai-stat-value {
-                font-size: 32px;
-                font-weight: 700;
-                line-height: 1.2;
-            }
-            .msai-stat-card .msai-stat-label {
-                color: #50575e;
-                font-size: 13px;
-                margin-top: 4px;
-            }
-            /* Chart panel */
-            .msai-chart-panel {
-                background: #fff;
-                border: 1px solid #c3c4c7;
-                border-radius: 4px;
-                padding: 16px 20px;
-                margin-bottom: 20px;
-            }
-            .msai-chart-panel h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
-            .msai-chart-panel canvas { max-height: 280px; }
-            /* Funnel */
-            .msai-funnel { display: flex; align-items: stretch; gap: 0; margin-bottom: 20px; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; }
-            .msai-funnel-step { flex: 1; text-align: center; padding: 20px 10px; position: relative; border-right: 1px solid #e2e4e7; }
-            .msai-funnel-step:last-child { border-right: none; }
-            .msai-funnel-step .msai-funnel-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
-            .msai-funnel-step .msai-funnel-label { font-size: 12px; color: #50575e; margin-top: 4px; }
-            .msai-funnel-step .msai-funnel-pct { font-size: 11px; color: #888; margin-top: 2px; }
-            .msai-funnel-arrow { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #c3c4c7; z-index: 1; }
-            .msai-tables-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-                margin-top: 20px;
-            }
-            @media (max-width: 782px) { .msai-tables-grid { grid-template-columns: 1fr; } }
-            .msai-panel {
-                background: #fff;
-                border: 1px solid #c3c4c7;
-                border-radius: 4px;
-            }
-            .msai-panel-title {
-                padding: 12px 16px;
-                margin: 0;
-                font-size: 14px;
-                font-weight: 600;
-                border-bottom: 1px solid #c3c4c7;
-                background: #f6f7f7;
-            }
-            .msai-panel .widefat { border: none; box-shadow: none; }
-            .msai-panel .widefat th,
-            .msai-panel .widefat td { padding: 10px 16px; }
-            .msai-pag { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-top: 1px solid #c3c4c7; background: #f6f7f7; }
-            .msai-pag button { background: #2271b1; color: #fff; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; }
-            .msai-pag button:disabled { background: #c3c4c7; cursor: default; }
-            .msai-pag span { font-size: 12px; color: #50575e; }
-        </style>
-
-        <div class="msai-dash">
-
-        <!-- Toolbar: date range + CSV export -->
-        <div class="msai-toolbar">
-            <div class="msai-range-btns">
-                <a href="<?php echo esc_url(add_query_arg('range', '1', $range_base)); ?>" class="<?php echo esc_attr($range === '1' ? 'active' : ''); ?>"><?php echo esc_html(ai_chatboot_ms_t('admin_range_today')); ?></a>
-                <a href="<?php echo esc_url(add_query_arg('range', '7', $range_base)); ?>" class="<?php echo esc_attr($range === '7' ? 'active' : ''); ?>">7 <?php echo esc_html(ai_chatboot_ms_t('admin_range_days')); ?></a>
-                <a href="<?php echo esc_url(add_query_arg('range', '30', $range_base)); ?>" class="<?php echo esc_attr($range === '30' ? 'active' : ''); ?>">30 <?php echo esc_html(ai_chatboot_ms_t('admin_range_days')); ?></a>
-                <a href="<?php echo esc_url(add_query_arg('range', '90', $range_base)); ?>" class="<?php echo esc_attr($range === '90' ? 'active' : ''); ?>">90 <?php echo esc_html(ai_chatboot_ms_t('admin_range_days')); ?></a>
-                <a href="<?php echo esc_url(add_query_arg('range', 'all', $range_base)); ?>" class="<?php echo esc_attr($range === 'all' ? 'active' : ''); ?>"><?php echo esc_html(ai_chatboot_ms_t('admin_range_all')); ?></a>
-            </div>
-            <a href="#" class="msai-csv-btn" id="msai-csv-export">📥 <?php echo esc_html(ai_chatboot_ms_t('admin_csv_export')); ?></a>
-        </div>
-
-        <!-- Stat cards -->
-        <div class="msai-stats">
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#2271b1;"><?php echo esc_html($total_queries); ?></div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_total_queries')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#2271b1;"><?php echo esc_html($unique_sessions); ?></div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_unique_sessions')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#2271b1;"><?php echo esc_html($ai_queries); ?></div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_ai_responses')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#1a6b2a;"><?php echo esc_html($cart_adds); ?></div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_added_to_cart')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#d63638;"><?php echo esc_html($zero_results); ?></div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_zero_results')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#dba617;"><?php echo esc_html($cart_conversion); ?>%</div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_cart_conversion')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#135e96;"><?php echo esc_html($purchase_conversion); ?>%</div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_purchase_conversion')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#1a6b2a;"><?php echo esc_html($purchases); ?></div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_purchased')); ?></div>
-            </div>
-            <div class="msai-stat-card">
-                <div class="msai-stat-value" style="color:#8c5e58;"><?php echo esc_html($compare_count); ?></div>
-                <div class="msai-stat-label"><?php echo esc_html(ai_chatboot_ms_t('admin_comparisons')); ?></div>
-            </div>
-        </div>
-
-        <!-- Conversion funnel -->
-        <div class="msai-funnel">
-            <div class="msai-funnel-step" style="background: rgba(34,113,177,0.06);">
-                <div class="msai-funnel-value" style="color:#2271b1;"><?php echo esc_html($search_total); ?></div>
-                <div class="msai-funnel-label"><?php echo esc_html(ai_chatboot_ms_t('admin_funnel_searches')); ?></div>
-                <span class="msai-funnel-arrow">▸</span>
-            </div>
-            <div class="msai-funnel-step" style="background: rgba(34,113,177,0.04);">
-                <div class="msai-funnel-value" style="color:#2271b1;"><?php echo esc_html($results_with_products); ?></div>
-                <div class="msai-funnel-label"><?php echo esc_html(ai_chatboot_ms_t('admin_funnel_with_results')); ?></div>
-                <div class="msai-funnel-pct"><?php echo esc_html($search_total > 0 ? round(($results_with_products / $search_total) * 100, 1) : 0); ?>%</div>
-                <span class="msai-funnel-arrow">▸</span>
-            </div>
-            <div class="msai-funnel-step" style="background: rgba(140,94,88,0.06);">
-                <div class="msai-funnel-value" style="color:#8c5e58;"><?php echo esc_html($compare_count); ?></div>
-                <div class="msai-funnel-label"><?php echo esc_html(ai_chatboot_ms_t('admin_funnel_compared')); ?></div>
-                <div class="msai-funnel-pct"><?php echo esc_html($search_total > 0 ? round(($compare_count / $search_total) * 100, 1) : 0); ?>%</div>
-                <span class="msai-funnel-arrow">▸</span>
-            </div>
-            <div class="msai-funnel-step" style="background: rgba(26,107,42,0.06);">
-                <div class="msai-funnel-value" style="color:#1a6b2a;"><?php echo esc_html($cart_adds); ?></div>
-                <div class="msai-funnel-label"><?php echo esc_html(ai_chatboot_ms_t('admin_funnel_cart')); ?></div>
-                <div class="msai-funnel-pct"><?php echo esc_html($search_total > 0 ? round(($cart_adds / $search_total) * 100, 1) : 0); ?>%</div>
-                <span class="msai-funnel-arrow">▸</span>
-            </div>
-            <div class="msai-funnel-step" style="background: rgba(19,94,150,0.06);">
-                <div class="msai-funnel-value" style="color:#135e96;"><?php echo esc_html($purchases); ?></div>
-                <div class="msai-funnel-label"><?php echo esc_html(ai_chatboot_ms_t('admin_funnel_purchased')); ?></div>
-                <div class="msai-funnel-pct"><?php echo esc_html($search_total > 0 ? round(($purchases / $search_total) * 100, 1) : 0); ?>%</div>
-            </div>
-        </div>
-
-        <!-- Chart.js daily activity -->
-        <div class="msai-chart-panel">
-            <h3><?php echo esc_html(ai_chatboot_ms_t('admin_chart_title')); ?></h3>
-            <canvas id="msai-daily-chart"></canvas>
-        </div>
-
-        <!-- Tables — 2-column grid -->
-        <div class="msai-tables-grid">
-
-            <!-- Popular searches -->
-            <div class="msai-panel">
-                <h3 class="msai-panel-title"><?php echo esc_html(ai_chatboot_ms_t('admin_popular_searches')); ?></h3>
-                <table class="widefat striped msai-paginated">
-                    <thead><tr><th><?php echo esc_html(ai_chatboot_ms_t('admin_query')); ?></th><th style="text-align:right;width:70px;"><?php echo esc_html(ai_chatboot_ms_t('admin_times')); ?></th></tr></thead>
-                    <tbody>
-                    <?php foreach ($top_searches as $row): ?>
-                        <tr><td><?php echo esc_html($row->query); ?></td><td style="text-align:right;"><?php echo esc_html($row->cnt); ?></td></tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($top_searches)): ?>
-                        <tr><td colspan="2"><?php echo esc_html(ai_chatboot_ms_t('admin_no_data')); ?></td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Zero-result searches -->
-            <div class="msai-panel">
-                <h3 class="msai-panel-title"><?php echo esc_html(ai_chatboot_ms_t('admin_zero_result_searches')); ?></h3>
-                <table class="widefat striped msai-paginated">
-                    <thead><tr><th><?php echo esc_html(ai_chatboot_ms_t('admin_query')); ?></th><th style="text-align:right;width:70px;"><?php echo esc_html(ai_chatboot_ms_t('admin_times')); ?></th></tr></thead>
-                    <tbody>
-                    <?php foreach ($top_zero as $row): ?>
-                        <tr><td><?php echo esc_html($row->query); ?></td><td style="text-align:right;"><?php echo esc_html($row->cnt); ?></td></tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($top_zero)): ?>
-                        <tr><td colspan="2"><?php echo esc_html(ai_chatboot_ms_t('admin_no_data')); ?></td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Query type breakdown -->
-            <div class="msai-panel">
-                <h3 class="msai-panel-title"><?php echo esc_html(ai_chatboot_ms_t('admin_query_types')); ?></h3>
-                <table class="widefat striped">
-                    <thead><tr><th><?php echo esc_html(ai_chatboot_ms_t('admin_type')); ?></th><th style="text-align:right;width:70px;"><?php echo esc_html(ai_chatboot_ms_t('admin_count')); ?></th></tr></thead>
-                    <tbody>
-                    <?php foreach ($types as $row): ?>
-                        <tr><td><?php echo esc_html($row->query_type); ?></td><td style="text-align:right;"><?php echo esc_html($row->cnt); ?></td></tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($types)): ?>
-                        <tr><td colspan="2"><?php echo esc_html(ai_chatboot_ms_t('admin_no_data')); ?></td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Top products -->
-            <div class="msai-panel">
-                <h3 class="msai-panel-title">🏆 <?php echo esc_html(ai_chatboot_ms_t('admin_top_products')); ?></h3>
-                <table class="widefat striped msai-paginated">
-                    <thead><tr>
-                        <th><?php echo esc_html(ai_chatboot_ms_t('admin_product')); ?></th>
-                        <th style="text-align:right;width:70px;"><?php echo esc_html(ai_chatboot_ms_t('admin_found')); ?></th>
-                        <th style="text-align:right;width:70px;">🛒</th>
-                    </tr></thead>
-                    <tbody>
-                    <?php foreach ($top_products as $row):
-                        $product = function_exists('wc_get_product') ? wc_get_product((int) $row->top_product_id) : null;
-                        $name = $product ? $product->get_name() : '#' . $row->top_product_id;
-                    ?>
-                        <tr>
-                            <td><?php if ($product): ?><a href="<?php echo esc_url(get_edit_post_link((int) $row->top_product_id)); ?>"><?php echo esc_html($name); ?></a><?php else: echo esc_html($name); endif; ?></td>
-                            <td style="text-align:right;"><?php echo esc_html($row->found_cnt); ?></td>
-                            <td style="text-align:right;"><?php echo esc_html((int) $row->cart_cnt); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($top_products)): ?>
-                        <tr><td colspan="3"><?php echo esc_html(ai_chatboot_ms_t('admin_no_data')); ?></td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Compared products — full width -->
-            <div class="msai-panel" style="grid-column: 1 / -1;">
-                <h3 class="msai-panel-title"><?php echo esc_html(ai_chatboot_ms_t('admin_compared_products')); ?></h3>
-                <table class="widefat striped msai-paginated">
-                    <thead><tr><th><?php echo esc_html(ai_chatboot_ms_t('admin_product')); ?></th><th style="text-align:right;width:70px;"><?php echo esc_html(ai_chatboot_ms_t('admin_times')); ?></th></tr></thead>
-                    <tbody>
-                    <?php
-                    $shown = 0;
-                    foreach ($compared_product_counts as $pid => $cnt) {
-                        if ($shown >= 50) break;
-                        $product = function_exists('wc_get_product') ? wc_get_product($pid) : null;
-                        $name = $product ? $product->get_name() : '#' . $pid;
-                        ?>
-                        <tr>
-                            <td><?php if ($product): ?><a href="<?php echo esc_url(get_edit_post_link($pid)); ?>"><?php echo esc_html($name); ?></a><?php else: echo esc_html($name); endif; ?></td>
-                            <td style="text-align:right;"><?php echo esc_html($cnt); ?></td>
-                        </tr>
-                        <?php
-                        $shown++;
-                    }
-                    if (empty($compared_product_counts)): ?>
-                        <tr><td colspan="2"><?php echo esc_html(ai_chatboot_ms_t('admin_no_data')); ?></td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-
-        </div><!-- .msai-tables-grid -->
-        </div><!-- .msai-dash -->
-
-        <?php
-        $dashboard_js = '(function(){'
-            . 'var ctx=document.getElementById("msai-daily-chart");'
-            . 'if(ctx&&typeof Chart!=="undefined"){new Chart(ctx,{type:"line",data:{labels:' . wp_json_encode($chart_labels) . ',datasets:[{label:' . wp_json_encode(ai_chatboot_ms_t('admin_queries')) . ',data:' . wp_json_encode($chart_queries) . ',borderColor:"#2271b1",backgroundColor:"rgba(34,113,177,0.08)",fill:true,tension:0.3,pointRadius:3},{label:"Cart",data:' . wp_json_encode($chart_carts) . ',borderColor:"#1a6b2a",backgroundColor:"rgba(26,107,42,0.08)",fill:true,tension:0.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},scales:{y:{beginAtZero:true,ticks:{precision:0}},x:{ticks:{maxTicksAuto:true,maxRotation:45}}},plugins:{legend:{position:"top"}}}});}'
-            . 'var PER_PAGE=10;document.querySelectorAll(".msai-paginated").forEach(function(table){var tbody=table.querySelector("tbody");if(!tbody)return;var rows=Array.from(tbody.querySelectorAll("tr"));if(rows.length<=PER_PAGE)return;var page=0;var totalPages=Math.ceil(rows.length/PER_PAGE);function render(){rows.forEach(function(r,i){r.style.display=(i>=page*PER_PAGE&&i<(page+1)*PER_PAGE)?"":"none";});info.textContent=(page+1)+" / "+totalPages;prev.disabled=page===0;next.disabled=page>=totalPages-1;}var nav=document.createElement("div");nav.className="msai-pag";var prev=document.createElement("button");prev.textContent="\u25C0";prev.onclick=function(){if(page>0){page--;render();}};var next=document.createElement("button");next.textContent="\u25B6";next.onclick=function(){if(page<totalPages-1){page++;render();}};var info=document.createElement("span");nav.appendChild(prev);nav.appendChild(info);nav.appendChild(next);table.parentNode.appendChild(nav);render();});'
-            . 'var csvBtn=document.getElementById("msai-csv-export");if(csvBtn){csvBtn.addEventListener("click",function(e){e.preventDefault();var url=' . wp_json_encode(admin_url('admin-ajax.php')) . ';url+="?action=ai_chatboot_ms_csv_export&nonce=' . esc_js($csv_nonce) . '&range=' . esc_js($range) . '";window.location.href=url;});}'
-            . '})();';
-        wp_add_inline_script('bootflow-shop-assist-admin', $dashboard_js, 'after');
-        ?>
-        <?php
+        echo '<div class="notice notice-info"><p>' . esc_html__('Analytics is available in the PRO add-on only.', 'ai-chatbot-ms') . '</p></div>';
     }
 
     public function ajax_csv_export() {
-        if (!current_user_can('manage_options') || !check_ajax_referer('msai_csv_export', 'nonce', false)) {
-            wp_die(esc_html(ai_chatboot_ms_t('admin_unauthorized')));
-        }
-
-        global $wpdb;
-        $table = esc_sql($wpdb->prefix . 'ai_chatbot_logs');
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce is already validated by check_ajax_referer above
-        $range = isset($_GET['range']) ? sanitize_key(wp_unslash((string) $_GET['range'])) : '30';
-        $valid = ['1', '7', '30', '90', 'all'];
-        if (!in_array($range, $valid, true)) $range = '30';
-
-        if ($range === 'all') {
-            $where = '';
-        } elseif ($range === '1') {
-            $where = ' WHERE DATE(created_at) = CURDATE()';
-        } else {
-            $days = (int) $range;
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $where = $wpdb->prepare(" WHERE created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)", $days);
-        }
-
-        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is prefix-based, $where is prepared
-        $rows = $wpdb->get_results("SELECT id, session_id, user_id, query, query_type, results_count, top_product_id, added_to_cart, purchased, ai_used, language, created_at FROM `{$table}`{$where} ORDER BY created_at DESC", ARRAY_A);
-        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
-
-        $filename = 'chatbot-analytics-' . $range . '-' . gmdate('Y-m-d') . '.csv';
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-        if (!empty($rows)) {
-            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV stream output is intentionally raw
-            echo $this->csv_join_line(array_keys($rows[0]));
-            foreach ($rows as $row) {
-                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV stream output is intentionally raw
-                echo $this->csv_join_line($row);
-            }
-        }
-        exit;
-    }
-
-    private function csv_join_line(array $row) {
-        $escaped = [];
-        foreach ($row as $value) {
-            $str = (string) $value;
-            $str = str_replace('"', '""', $str);
-            $escaped[] = '"' . $str . '"';
-        }
-        return implode(',', $escaped) . "\r\n";
+        wp_die(esc_html__('Analytics export is available in the PRO add-on only.', 'ai-chatbot-ms'));
     }
 
     public function maybe_redirect_after_activation() {
