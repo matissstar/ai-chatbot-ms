@@ -538,6 +538,10 @@ class Bootflow_Shop_Assist_Admin {
                     <tr>
                         <th><?php echo esc_html(ai_chatboot_ms_t('admin_voice_mode')); ?></th>
                         <td>
+                            <p class="description" style="margin:0 0 8px;">
+                                <?php echo esc_html__('FREE supports browser voice where available (best in Chrome/Edge).', 'ai-chatbot-ms'); ?><br>
+                                <?php echo esc_html__('PRO adds cross-browser voice recognition (including Safari/Apple devices) via Google Speech fallback.', 'ai-chatbot-ms'); ?>
+                            </p>
                             <select name="ai_chatboot_ms_voice_mode">
                                 <option value="manual" <?php selected($current_voice_mode, 'manual'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_voice_mode_manual')); ?></option>
                                 <option value="delayed" <?php selected($current_voice_mode, 'delayed'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_voice_mode_delayed')); ?></option>

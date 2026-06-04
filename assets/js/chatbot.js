@@ -33,6 +33,10 @@
     let audioStream = null;
     let audioLevelRAF = null;
     let listeningMsgShown = false;
+    let mediaRecorder = null;
+    let mediaChunks = [];
+    let mediaStopTimer = null;
+    let usingCloudSpeech = false;
 
     // Browser speech recognition is used only when the browser supports it.
     let isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
@@ -1978,9 +1982,150 @@
         if (btn) { btn.style.boxShadow = ''; btn.style.transform = ''; }
     }
 
+    function canUseCloudSpeechFallback() {
+        var pro = (ai_chatboot_ms_ajax && ai_chatboot_ms_ajax.pro) ? ai_chatboot_ms_ajax.pro : null;
+        if (!pro || !pro.enabled || !pro.voice) return false;
+        var mode = pro.voice.mode || 'browser_fallback';
+        if (mode === 'browser_only') return false;
+        return !!pro.voice.google_connected;
+    }
+
+    function isGoogleOnlyMode() {
+        var pro = (ai_chatboot_ms_ajax && ai_chatboot_ms_ajax.pro) ? ai_chatboot_ms_ajax.pro : null;
+        if (!pro || !pro.voice) return false;
+        return (pro.voice.mode || '') === 'google_only' && !!pro.voice.google_connected;
+    }
+
+    function cloudSpeechMaxSeconds() {
+        var pro = (ai_chatboot_ms_ajax && ai_chatboot_ms_ajax.pro) ? ai_chatboot_ms_ajax.pro : null;
+        var v = pro && pro.voice && pro.voice.max_seconds ? parseInt(pro.voice.max_seconds, 10) : 15;
+        if (!v || v < 1) v = 15;
+        return v;
+    }
+
+    function sendCloudSpeechBlob(blob, mimeType) {
+        var fd = new FormData();
+        fd.append('action', 'ai_chatboot_ms_pro_speech_to_text');
+        fd.append('nonce', ai_chatboot_ms_ajax.nonce || '');
+        fd.append('lang', t('speech_lang') || 'en-US');
+        fd.append('audio', blob, 'voice.' + ((mimeType || '').indexOf('ogg') !== -1 ? 'ogg' : 'webm'));
+
+        $.ajax({
+            url: ai_chatboot_ms_ajax.ajax_url,
+            type: 'POST',
+            data: fd,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response && response.success && response.data && response.data.transcript) {
+                    handleVoiceResult(response.data.transcript);
+                    return;
+                }
+                addMessageToLog('bot', (response && response.data && response.data.text) ? response.data.text : t('voice_no_result'), true);
+            },
+            error: function(xhr) {
+                var txt = t('voice_no_result');
+                if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.text) {
+                    txt = xhr.responseJSON.data.text;
+                }
+                addMessageToLog('bot', txt, true);
+            },
+            complete: function() {
+                isRecording = false;
+                usingCloudSpeech = false;
+                $('#msai-smart-btn').removeClass('msai-recording').prop('disabled', false);
+                updateSmartButton();
+            }
+        });
+    }
+
+    function startCloudRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+            addMessageToLog('bot', t('voice_not_supported'), true);
+            return;
+        }
+        if (isRecording) return;
+
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+            var options = {};
+            if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                options.mimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                options.mimeType = 'audio/ogg;codecs=opus';
+            }
+
+            mediaRecorder = new MediaRecorder(stream, options);
+            mediaChunks = [];
+            usingCloudSpeech = true;
+
+            mediaRecorder.onstart = function() {
+                isRecording = true;
+                $('#msai-smart-btn').text(t('voice_stop')).addClass('msai-recording');
+                addMessageToLog('bot', t('voice_listening'), true);
+                $('#msai-log').scrollTop($('#msai-log')[0].scrollHeight);
+
+                mediaStopTimer = setTimeout(function() {
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                        mediaRecorder.stop();
+                    }
+                }, cloudSpeechMaxSeconds() * 1000);
+            };
+
+            mediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) mediaChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = function() {
+                clearTimeout(mediaStopTimer);
+                mediaStopTimer = null;
+                stopAudioLevelMonitor();
+                stream.getTracks().forEach(function(t) { t.stop(); });
+
+                if (!mediaChunks.length) {
+                    isRecording = false;
+                    usingCloudSpeech = false;
+                    $('#msai-smart-btn').removeClass('msai-recording').prop('disabled', false);
+                    updateSmartButton();
+                    addMessageToLog('bot', t('voice_no_result'), true);
+                    return;
+                }
+
+                var mimeType = mediaChunks[0].type || (options.mimeType || 'audio/webm');
+                var blob = new Blob(mediaChunks, { type: mimeType });
+                sendCloudSpeechBlob(blob, mimeType);
+            };
+
+            mediaRecorder.onerror = function() {
+                clearTimeout(mediaStopTimer);
+                mediaStopTimer = null;
+                stopAudioLevelMonitor();
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                isRecording = false;
+                usingCloudSpeech = false;
+                $('#msai-smart-btn').removeClass('msai-recording').prop('disabled', false);
+                updateSmartButton();
+                addMessageToLog('bot', t('voice_no_result'), true);
+            };
+
+            mediaRecorder.start();
+        }).catch(function() {
+            addMessageToLog('bot', t('voice_no_mic'), true);
+        });
+    }
+
     // Start browser-based voice recognition when supported.
     function startRecording() {
+        var forceGoogle = isGoogleOnlyMode();
+        if (forceGoogle) {
+            startCloudRecording();
+            return;
+        }
+
         if (!useWebSpeech) {
+            if (canUseCloudSpeechFallback()) {
+                startCloudRecording();
+                return;
+            }
             addMessageToLog('bot', t('voice_not_supported'), true);
             return;
         }
@@ -1988,6 +2133,10 @@
         var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             useWebSpeech = false;
+            if (canUseCloudSpeechFallback()) {
+                startCloudRecording();
+                return;
+            }
             addMessageToLog('bot', t('voice_not_supported'), true);
             return;
         }
@@ -2052,7 +2201,11 @@
                 voiceStopIntentional = true;
                 isRecording = false;
                 $('#msai-smart-btn').text(t('btn_voice')).removeClass('msai-recording');
-                addMessageToLog('bot', t('voice_not_supported'), true);
+                if (canUseCloudSpeechFallback()) {
+                    startCloudRecording();
+                } else {
+                    addMessageToLog('bot', t('voice_not_supported'), true);
+                }
                 return;
             }
             // Fatal errors — show message, stop
@@ -2203,11 +2356,17 @@
     // Stop voice recording
     function stopRecording() {
         clearTimeout(speechSilenceTimer);
+        clearTimeout(mediaStopTimer);
+        mediaStopTimer = null;
         voiceStopIntentional = true;
         if (speechRecognition && isRecording) {
             speechRecognition.stop();
         }
+        if (mediaRecorder && mediaRecorder.state && mediaRecorder.state !== 'inactive') {
+            try { mediaRecorder.stop(); } catch (e) { /* ignore */ }
+        }
         isRecording = false;
+        usingCloudSpeech = false;
         stopAudioLevelMonitor();
         $('#msai-smart-btn').removeClass('msai-recording').prop('disabled', false);
         updateSmartButton();

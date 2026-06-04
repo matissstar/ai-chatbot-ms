@@ -357,6 +357,21 @@ class Bootflow_Shop_Assist_Chatbot {
             ]);
         }
 
+        /**
+         * Filter: bootflow_shop_assist_ai_search
+         * PRO add-on can intercept search with AI before keyword search.
+         * 
+         * @param array|null $response  null = continue to keyword search
+         * @param string     $message   User's original message
+         * @param string     $lower     Lowercase version
+         * @return array|null  ['text' => '...', 'products' => [...]] or null
+         */
+        $ai_response = apply_filters('bootflow_shop_assist_ai_search', null, $message, $lower);
+        if ($ai_response !== null) {
+            wp_send_json_success($ai_response);
+            return;
+        }
+
         // Keyword search with relevance scoring
         $keyword_results = $this->search_products($message);
         if (!empty($keyword_results)) {

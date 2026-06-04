@@ -63,7 +63,7 @@ function ai_chatboot_ms_get_translations() {
             'voice_no_result'    => '❌ Neizdevās atpazīt runu. Mēģini vēlreiz.',
             'voice_processing'   => '⏳ Apstrādāju balsi...',
             'voice_recognized'   => '✅ Atpazīts: "',
-            'voice_not_supported'=> '❌ Tavs pārlūks neatbalsta balss atpazīšanu. Izmanto Chrome, Edge vai Safari.',
+            'voice_not_supported'=> 'Balss ievade vislabāk darbojas Chrome vai Edge. Tu vari ierakstīt jautājumu šeit.',
             'voice_blocked'      => '❌ Balss atpazīšana nav pieejama šajā pārlūkā. Pārliecinies, ka atļauta mikrofona piekļuve, vai izmanto Chrome.',
             // Voice stop
             'voice_stop'         => 'Stop',
@@ -483,7 +483,7 @@ function ai_chatboot_ms_get_translations() {
             'voice_no_result'    => '❌ Could not recognize speech. Try again.',
             'voice_processing'   => '⏳ Processing voice...',
             'voice_recognized'   => '✅ Recognized: "',
-            'voice_not_supported'=> '❌ Your browser does not support speech recognition. Use Chrome, Edge or Safari.',
+            'voice_not_supported'=> 'Voice input works best in Chrome or Edge. You can still type your question here.',
             'voice_blocked'      => '❌ Speech recognition is not available in this browser. Make sure microphone access is allowed, or use Chrome.',
             'voice_stop'         => 'Stop',
             'voice_auto_searching' => 'Searching in {n}...',

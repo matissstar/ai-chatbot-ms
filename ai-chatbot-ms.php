@@ -203,7 +203,8 @@ add_action('wp_enqueue_scripts', function() {
             wp_add_inline_style('bootflow-shop-assist-style', $inline_css);
         }
 
-        wp_enqueue_script('bootflow-shop-assist-script', BOOTFLOW_SHOP_ASSIST_PLUGIN_URL . 'assets/js/chatbot' . $suffix . '.js', ['jquery'], BOOTFLOW_SHOP_ASSIST_VERSION, false);
+        // Use non-minified JS so add-on runtime hooks and latest speech fallback logic are always in sync.
+        wp_enqueue_script('bootflow-shop-assist-script', BOOTFLOW_SHOP_ASSIST_PLUGIN_URL . 'assets/js/chatbot.js', ['jquery'], BOOTFLOW_SHOP_ASSIST_VERSION, false);
 
         // Build localize data — add-ons can extend via filter
         $localize_data = [
