@@ -552,10 +552,6 @@
     function showStarterQuestions() {
         var log = $('#msai-log');
         log.empty();
-        // Welcome message — custom from white-label or default from translations
-        var welcomeText = ai_chatboot_ms_ajax.wl_welcome || t('welcome_message');
-        var welcome = $('<div>').addClass('msai-message msai-bot').text(welcomeText);
-        log.append(welcome);
         // GDPR notice — custom from admin or default from translations
         var gdprText = ai_chatboot_ms_ajax.gdpr_notice || t('gdpr_notice');
         if (gdprText) {
@@ -563,6 +559,10 @@
                 .css({fontSize: '12px', opacity: 0.75}).text(gdprText);
             log.append(gdpr);
         }
+        // Welcome message — custom from white-label or default from translations
+        var welcomeText = ai_chatboot_ms_ajax.wl_welcome || t('welcome_message');
+        var welcome = $('<div>').addClass('msai-message msai-bot').text(welcomeText);
+        log.append(welcome);
         // Starter questions — loaded from admin config
         var starters = ai_chatboot_ms_ajax.starter_questions || [];
         if (starters.length > 0) {
@@ -618,28 +618,6 @@
                 container.append(btn);
             });
             log.append(container);
-        } else if (ai_chatboot_ms_ajax.show_default_starters === '1') {
-            // Fallback: hardcoded starter questions if none configured
-            var container = $('<div>').addClass('msai-starter-questions');
-            var groups = [
-                { label: t('starter_cat_products'), questions: [t('starter_q2')] },
-                { label: t('starter_cat_delivery'), questions: [t('starter_q3'), t('starter_q4')] }
-            ];
-            groups.forEach(function(group) {
-                var groupDiv = $('<div>').addClass('msai-starter-group');
-                groupDiv.append($('<div>').addClass('msai-starter-label').text(group.label));
-                group.questions.forEach(function(q) {
-                    var btn = $('<button>').addClass('msai-starter-btn').text(q);
-                    btn.on('click', function() {
-                        $('.msai-starter-questions').remove();
-                        $('#msai-q').val(q);
-                        $('#msai-form').trigger('submit');
-                    });
-                    groupDiv.append(btn);
-                });
-                container.append(groupDiv);
-            });
-            log.append(container);
         }
     }
 
@@ -647,6 +625,12 @@
     function addMessageToLog(sender, message, noScroll) {
         const log = $('#msai-log');
         const messageDiv = $('<div>').addClass('msai-message msai-' + sender);
+        if (sender === 'user') {
+            var prev = log.children().last();
+            if (prev.hasClass('msai-products') || prev.hasClass('msai-load-more')) {
+                messageDiv.addClass('msai-user-after-products');
+            }
+        }
         if (sender === 'bot') {
             // Allow safe HTML tags from bot responses (<a>, <br>, <b>, <i>, <strong>, <em>, <p>, <ul>, <li>)
             var safe = sanitizeBotHtml(message);
@@ -662,7 +646,16 @@
         }
         log.append(messageDiv);
         saveToHistory({type: 'text', sender: sender, text: message});
-        if (!noScroll) scrollToLastUserMessage();
+        if (!noScroll) {
+            if (sender === 'bot') {
+                log.scrollTop(log[0].scrollHeight);
+            } else {
+                scrollToLastUserMessage();
+            }
+        } else if (sender === 'bot') {
+            // Voice/system bot notices often pass noScroll=true; keep latest message visible.
+            log.scrollTop(log[0].scrollHeight);
+        }
     }
 
     // Sanitize bot HTML — keep only safe tags, strip everything else
@@ -940,15 +933,15 @@
                 'padding': '8px',
                 'text-align': 'center'
             });
-            if (product.image) {
-                var gallery = product.gallery && product.gallery.length ? product.gallery : getImageCandidates(product);
+            const imageCandidates = getImageCandidates(product);
+            if (imageCandidates.length > 0) {
                 var img = $('<img>')
                     .attr('alt', product.name)
                     .addClass('msai-compare-img')
                     .on('click', function() {
-                        openLightbox(gallery, 0);
+                        openLightbox(imageCandidates, 0);
                     });
-                applyImageFallback(img, getImageCandidates(product), product.name);
+                applyImageFallback(img, imageCandidates, product.name);
                 td.append(img);
             } else {
                 td.text('—');
@@ -1028,14 +1021,16 @@
         const productsDiv = $('<div>').addClass('msai-products msai-grid');
         const allProducts = products;
         lastDisplayedProducts = products;
-        activeSortKey = 'relevance'; // reset sort on new search
+        productsDiv.data('products', Array.isArray(products) ? products.slice() : []);
+        productsDiv.data('sortKey', 'relevance');
         var shown = 0;
 
         function createCard(product) {
             const card = $('<div>').addClass('msai-card').attr('data-product-id', product.id);
             
-            // Make image clickable
-            if (product.image) {
+            // Make image clickable - check if any image candidates exist
+            const imageCandidates = getImageCandidates(product);
+            if (imageCandidates.length > 0) {
                 const imgWrap = $('<div>').addClass('msai-card-img-wrap');
                 const img = $('<img>')
                     .attr('alt', product.title)
@@ -1045,7 +1040,7 @@
                             navigateToLink(product.permalink, product.id);
                         }
                     });
-                applyImageFallback(img, getImageCandidates(product), product.title);
+                applyImageFallback(img, imageCandidates, product.title);
                 imgWrap.append(img);
                 card.append(imgWrap);
             }
@@ -1151,11 +1146,10 @@
     }
 
     // ---- Sorting chips ----
-    var activeSortKey = 'relevance'; // default sort
-
     function displaySortChips(productsDiv) {
         // Remove any existing sort bar for this products grid
         productsDiv.prev('.msai-sort-chips').remove();
+        var localSortKey = productsDiv.data('sortKey') || 'relevance';
 
         var container = $('<div>').addClass('msai-message msai-bot msai-sort-chips');
         container.append($('<div>').addClass('msai-sort-label').text(t('sort_label')));
@@ -1175,15 +1169,15 @@
                 .attr('data-sort', opt.key)
                 .text(opt.label)
                 .on('click', function() {
-                    if (activeSortKey === opt.key) return;
-                    activeSortKey = opt.key;
+                    if ((productsDiv.data('sortKey') || 'relevance') === opt.key) return;
+                    productsDiv.data('sortKey', opt.key);
                     // Update selected state
                     container.find('.msai-sort-chip').removeClass('msai-chip-selected');
                     $(this).addClass('msai-chip-selected');
                     // Sort and re-render
                     applySorting(productsDiv);
                 });
-            if (opt.key === activeSortKey) {
+            if (opt.key === localSortKey) {
                 btn.addClass('msai-chip-selected');
             }
             row.append(btn);
@@ -1194,7 +1188,9 @@
     }
 
     function applySorting(productsDiv) {
-        var sorted = lastDisplayedProducts.slice();
+        var sourceProducts = productsDiv.data('products') || [];
+        var activeSortKey = productsDiv.data('sortKey') || 'relevance';
+        var sorted = sourceProducts.slice();
 
         switch (activeSortKey) {
             case 'price_asc':
@@ -2306,9 +2302,23 @@
 
     // Handle successful voice transcription (shared by both methods)
     function handleVoiceResult(transcript) {
-        $('#msai-q').val(transcript);
+        // Speech engines often append trailing punctuation like '.'; keep query clean.
+        var cleanedTranscript = String(transcript || '')
+            .replace(/[\s\u00A0]+$/g, '')
+            .replace(/[.!?]+$/g, '')
+            .trim();
+        if (!cleanedTranscript) {
+            cleanedTranscript = String(transcript || '').trim();
+        }
+
+        $('#msai-q').val(cleanedTranscript);
         updateSmartButton();
-        addMessageToLog('bot', t('voice_recognized') + transcript + '"', true);
+        addMessageToLog('bot', t('voice_recognized') + cleanedTranscript + '"', true);
+        
+        // Scroll to show the recognized text
+        setTimeout(function() {
+            scrollToLastUserMessage();
+        }, 100);
 
         var voiceMode = ai_chatboot_ms_ajax.voice_mode || 'delayed';
         if (voiceMode === 'instant') {

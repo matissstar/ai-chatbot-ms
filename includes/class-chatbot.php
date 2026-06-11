@@ -186,9 +186,24 @@ class Bootflow_Shop_Assist_Chatbot {
     private function get_product_best_image_url($product, $preferred_sizes = []) {
         if (!$product) return '';
 
+        $image_id = $product->get_image_id();
+        
+        // If variation has no image, try parent product
+        if (!$image_id && $product->is_type('variation')) {
+            $parent_id = $product->get_parent_id();
+            if ($parent_id) {
+                $parent = wc_get_product($parent_id);
+                if ($parent) {
+                    $image_id = $parent->get_image_id();
+                }
+            }
+        }
+        
+        $gallery_ids = $product->get_gallery_image_ids();
+        
         $attachment_ids = array_filter(array_merge(
-            [intval($product->get_image_id())],
-            array_map('intval', (array) $product->get_gallery_image_ids())
+            [intval($image_id)],
+            array_map('intval', (array) $gallery_ids)
         ));
 
         foreach ($attachment_ids as $attachment_id) {
@@ -207,10 +222,25 @@ class Bootflow_Shop_Assist_Chatbot {
     private function get_product_image_candidates($product, $preferred_sizes = []) {
         if (!$product) return [];
 
+        $image_id = $product->get_image_id();
+        
+        // If variation has no image, try parent product
+        if (!$image_id && $product->is_type('variation')) {
+            $parent_id = $product->get_parent_id();
+            if ($parent_id) {
+                $parent = wc_get_product($parent_id);
+                if ($parent) {
+                    $image_id = $parent->get_image_id();
+                }
+            }
+        }
+        
+        $gallery_ids = $product->get_gallery_image_ids();
+        
         $candidates = [];
         $attachment_ids = array_filter(array_merge(
-            [intval($product->get_image_id())],
-            array_map('intval', (array) $product->get_gallery_image_ids())
+            [intval($image_id)],
+            array_map('intval', (array) $gallery_ids)
         ));
 
         foreach ($attachment_ids as $attachment_id) {
@@ -324,12 +354,37 @@ class Bootflow_Shop_Assist_Chatbot {
 
         // Delivery information
         $delivery_kw = array_map('trim', explode(',', ai_chatboot_ms_t('delivery_keywords')));
+        $is_delivery_query = false;
         foreach ($delivery_kw as $dkw) {
             if ($dkw !== '' && mb_strpos($lower, $dkw) !== false) {
-                $delivery_info = $this->get_delivery_info();
-                wp_send_json_success(['text' => $delivery_info]);
+                $is_delivery_query = true;
+                break;
+            }
+        }
+        
+        if ($is_delivery_query) {
+            /**
+             * Filter: bootflow_shop_assist_delivery_tracking
+             * PRO add-on can provide real order tracking before static delivery info.
+             * 
+             * @param array|null $response  null = use static delivery info
+             * @param string     $message   User's original message
+             * @param string     $lower     Lowercase version
+             * @param int        $user_id   Current user ID (0 if not logged in)
+             * @return array|null  ['text' => '...', 'orders' => [...]] or null
+             */
+            $user_id = get_current_user_id();
+            $tracking_response = apply_filters('bootflow_shop_assist_delivery_tracking', null, $message, $lower, $user_id);
+            
+            if ($tracking_response !== null) {
+                wp_send_json_success($tracking_response);
                 return;
             }
+            
+            // Fallback to static delivery info
+            $delivery_info = $this->get_delivery_info();
+            wp_send_json_success(['text' => $delivery_info]);
+            return;
         }
 
         // Contact information
@@ -463,15 +518,8 @@ class Bootflow_Shop_Assist_Chatbot {
                         if ($this->fuzzy_contains($title, $qw)) {
                             $found_in_title = true;
                         }
-                        if (!$found_in_title) {
-                            foreach ($title_words as $tw) {
-                                if (mb_strlen($tw) < 3) continue;
-                                if (mb_strpos($qw, $tw) !== false || mb_strpos($tw, $qw) !== false) {
-                                    $found_in_title = true;
-                                    break;
-                                }
-                            }
-                        }
+                        // Removed partial word matching - was too fuzzy ("blue" matching "bluetooth")
+                        
                         if ($found_in_title) {
                             $matched_in_title[$qi] = true;
                         }
@@ -486,6 +534,17 @@ class Bootflow_Shop_Assist_Chatbot {
                     $all_matched = $matched_in_title + $matched_in_cats + $matched_in_desc;
                     $unique_matches = count($all_matched);
                     $total_words = count($query_words);
+
+                    // Require at least 1 keyword match in title/categories (not only description)
+                    $has_title_or_cat_match = !empty($matched_in_title) || !empty($matched_in_cats);
+                    if ($total_words >= 2 && !$has_title_or_cat_match) {
+                        continue;
+                    }
+
+                    // Require minimum 2 keywords match for multi-word queries
+                    if ($total_words >= 2 && $unique_matches < 2) {
+                        continue;
+                    }
 
                     if ($total_words > 0 && $unique_matches > 0) {
                         $score += pow($unique_matches, 2) * 300;
@@ -598,9 +657,10 @@ class Bootflow_Shop_Assist_Chatbot {
 
         if (function_exists('wc_get_products')) {
             $products = wc_get_products([
-                'post_type' => 'product',
-                'posts_per_page' => 1000,
-                'post_status' => 'publish'
+                'limit' => -1,
+                'status' => 'publish',
+                'orderby' => 'date',
+                'order' => 'DESC',
             ]);
             foreach ($products as $product) {
                 $all_data[] = $this->format_post_for_json($product->get_id());
@@ -638,7 +698,7 @@ class Bootflow_Shop_Assist_Chatbot {
     }
 
     private function get_delivery_info() {
-        $info = "🚚 " . ai_chatboot_ms_t('be_delivery_title', 'Piegādes informācija:') . "\n\n";
+        $info = "🚚 " . ai_chatboot_ms_t('be_delivery_info') . "\n\n";
 
         if (class_exists('WC_Shipping_Zones')) {
             $zones = WC_Shipping_Zones::get_zones();
@@ -664,15 +724,15 @@ class Bootflow_Shop_Assist_Chatbot {
             }
         }
 
-        $info .= "\n📦 " . ai_chatboot_ms_t('be_delivery_general', 'Vispārīgā informācija:') . "\n";
-        $info .= "- " . ai_chatboot_ms_t('be_delivery_processing', 'Darba dienās pasūtījumi tiek apstrādāti 24 stundu laikā') . "\n";
-        $info .= "- " . ai_chatboot_ms_t('be_delivery_time', 'Piegādes laiks: 2-5 darba dienas') . "\n";
+        $info .= "\n📦 " . ai_chatboot_ms_t('be_general_info') . "\n";
+        $info .= "- " . ai_chatboot_ms_t('be_delivery_proc') . "\n";
+        $info .= "- " . ai_chatboot_ms_t('be_delivery_time') . "\n";
 
         return $info;
     }
 
     private function get_contact_info() {
-        $info = "📞 " . ai_chatboot_ms_t('be_contact_title', 'Kontaktinformācija:') . "\n\n";
+        $info = "📞 " . ai_chatboot_ms_t('be_contact_info') . "\n\n";
 
         $site_name = get_bloginfo('name');
         $site_url = get_site_url();
@@ -695,7 +755,7 @@ class Bootflow_Shop_Assist_Chatbot {
         $country = get_option('woocommerce_default_country') ?: get_option('store_country');
 
         if ($address || $city) {
-            $info .= "\n🏠 " . ai_chatboot_ms_t('be_address', 'Adrese:') . "\n";
+            $info .= "\n🏠 " . ai_chatboot_ms_t('be_label_address') . "\n";
             if ($address) $info .= "{$address}\n";
             if ($city) $info .= "{$city}";
             if ($postcode) $info .= " {$postcode}";
@@ -801,6 +861,8 @@ class Bootflow_Shop_Assist_Chatbot {
                 'id' => $product->get_id(),
                 'name' => $product->get_name(),
                 'permalink' => get_permalink($product->get_id()),
+                'image' => $this->get_product_best_image_url($product, ['woocommerce_thumbnail', 'thumbnail', 'medium']),
+                'image_candidates' => $this->get_product_image_candidates($product, ['woocommerce_thumbnail', 'thumbnail', 'medium']),
                 'price' => $product->get_price(),
                 'sku' => $product->get_sku(),
                 'weight' => $product->get_weight(),
@@ -827,13 +889,6 @@ class Bootflow_Shop_Assist_Chatbot {
             'label' => ai_chatboot_ms_t('compare_price'),
             'values' => array_map(function($p) use ($currency_symbol) {
                 return $p['price'] ? $p['price'] . ' ' . $currency_symbol : '—';
-            }, $products)
-        ];
-
-        $comparison['attributes'][] = [
-            'label' => ai_chatboot_ms_t('compare_sku'),
-            'values' => array_map(function($p) {
-                return $p['sku'] ?: '—';
             }, $products)
         ];
 

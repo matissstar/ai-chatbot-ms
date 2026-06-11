@@ -3,6 +3,13 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
+// Resolve products JSON path before deleting options.
+$bootflow_shop_assist_json_path = get_option('ai_chatboot_ms_products_json_path');
+if (empty($bootflow_shop_assist_json_path)) {
+    $bootflow_shop_assist_upload_dir = wp_upload_dir();
+    $bootflow_shop_assist_json_path = $bootflow_shop_assist_upload_dir['basedir'] . '/ai-chatboot-products.json';
+}
+
 // --- General settings ---
 delete_option('ai_chatboot_ms_language');
 delete_option('ai_chatboot_ms_excluded_tags');
@@ -52,11 +59,6 @@ delete_transient('ai_chatboot_ms_needs_export');
 delete_transient('ai_chatboot_ms_activated');
 
 // --- Delete products JSON file ---
-$bootflow_shop_assist_json_path = get_option('ai_chatboot_ms_products_json_path');
-if (empty($bootflow_shop_assist_json_path)) {
-    $bootflow_shop_assist_upload_dir = wp_upload_dir();
-    $bootflow_shop_assist_json_path = $bootflow_shop_assist_upload_dir['basedir'] . '/ai-chatboot-products.json';
-}
 if ($bootflow_shop_assist_json_path && file_exists($bootflow_shop_assist_json_path)) {
     wp_delete_file($bootflow_shop_assist_json_path);
 }

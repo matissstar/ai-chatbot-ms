@@ -5,7 +5,7 @@
  * Version: 2.0.0
  * Author: Bootflow.io
  * License: GPL v2 or later
- * Text Domain: ai-chatbot-ms
+ * Text Domain: bootflow-shop-assist-for-woocommerce
  * Domain Path: /languages
  * Requires at least: 5.8
  * Requires PHP: 7.4
@@ -195,8 +195,8 @@ add_action('wp_enqueue_scripts', function() {
     if (bootflow_shop_assist_is_frontend()) {
         $css_deps = [];
 
-        $suffix = defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '' : '.min';
-        wp_enqueue_style('bootflow-shop-assist-style', BOOTFLOW_SHOP_ASSIST_PLUGIN_URL . 'assets/css/chatbot' . $suffix . '.css', $css_deps, BOOTFLOW_SHOP_ASSIST_VERSION);
+        // Use non-minified CSS so UI fixes are always in sync with runtime markup.
+        wp_enqueue_style('bootflow-shop-assist-style', BOOTFLOW_SHOP_ASSIST_PLUGIN_URL . 'assets/css/chatbot.css', $css_deps, BOOTFLOW_SHOP_ASSIST_VERSION);
 
         $inline_css = bootflow_shop_assist_get_theme_css();
         if ($inline_css) {

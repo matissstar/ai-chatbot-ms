@@ -95,10 +95,10 @@ class Bootflow_Shop_Assist_Admin {
         ?>
         <div class="wrap">
             <h1>Bootflow Shop Assist PRO</h1>
-            <p><?php echo esc_html__('Need advanced functionality and premium support?', 'ai-chatbot-ms'); ?></p>
+            <p><?php echo esc_html__('Need advanced functionality and premium support?', 'bootflow-shop-assist-for-woocommerce'); ?></p>
             <p>
                 <a class="button button-primary" href="<?php echo esc_url($pro_url); ?>" target="_blank" rel="noopener noreferrer">
-                    <?php echo esc_html__('View PRO details', 'ai-chatbot-ms'); ?>
+                    <?php echo esc_html__('View PRO details', 'bootflow-shop-assist-for-woocommerce'); ?>
                 </a>
             </p>
         </div>
@@ -539,8 +539,7 @@ class Bootflow_Shop_Assist_Admin {
                         <th><?php echo esc_html(ai_chatboot_ms_t('admin_voice_mode')); ?></th>
                         <td>
                             <p class="description" style="margin:0 0 8px;">
-                                <?php echo esc_html__('FREE supports browser voice where available (best in Chrome/Edge).', 'ai-chatbot-ms'); ?><br>
-                                <?php echo esc_html__('PRO adds cross-browser voice recognition (including Safari/Apple devices) via Google Speech fallback.', 'ai-chatbot-ms'); ?>
+                                <?php echo esc_html__('Voice recognition depends on browser support (works best in Chrome/Edge).', 'bootflow-shop-assist-for-woocommerce'); ?>
                             </p>
                             <select name="ai_chatboot_ms_voice_mode">
                                 <option value="manual" <?php selected($current_voice_mode, 'manual'); ?>><?php echo esc_html(ai_chatboot_ms_t('admin_voice_mode_manual')); ?></option>
@@ -933,7 +932,7 @@ class Bootflow_Shop_Assist_Admin {
             }
         }
 
-        $filename = 'ai-chatbot-ms-settings-' . gmdate('Y-m-d') . '.json';
+        $filename = 'bootflow-shop-assist-settings-' . gmdate('Y-m-d') . '.json';
         header('Content-Type: application/json; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: no-cache, no-store');
@@ -1432,9 +1431,13 @@ class Bootflow_Shop_Assist_Admin {
         foreach ($products as $p) {
             if (($p['type'] ?? '') !== 'product') continue;
             if (empty($p['stock_status']) || $p['stock_status'] === 'outofstock') continue;
-            $title = $p['title'] ?? '';
+            $title = isset($p['title']) ? sanitize_text_field((string) $p['title']) : '';
             if (mb_strpos(mb_strtolower($title), $q_lower) !== false) {
-                $results[] = ['id' => $p['id'], 'title' => $title, 'price' => $p['price'] ?? ''];
+                $results[] = [
+                    'id' => absint($p['id'] ?? 0),
+                    'title' => $title,
+                    'price' => isset($p['price']) ? sanitize_text_field((string) $p['price']) : '',
+                ];
                 if (count($results) >= 15) break;
             }
         }
@@ -1804,7 +1807,20 @@ class Bootflow_Shop_Assist_Admin {
             var name = sel.options[sel.selectedIndex].text;
             var tag = document.createElement('span');
             tag.className = 'msai-sq-cat-tag';
-            tag.innerHTML = name + '<input type="hidden" name="sq_search_cats[' + idx + '][]" value="' + sel.value + '"><span class="msai-sq-cat-remove" onclick="this.parentElement.remove()">✕</span>';
+            tag.appendChild(document.createTextNode(name));
+
+            var hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'sq_search_cats[' + idx + '][]';
+            hidden.value = sel.value;
+            tag.appendChild(hidden);
+
+            var removeBtn = document.createElement('span');
+            removeBtn.className = 'msai-sq-cat-remove';
+            removeBtn.textContent = '✕';
+            removeBtn.onclick = function() { tag.remove(); };
+            tag.appendChild(removeBtn);
+
             list.appendChild(tag);
             sel.value = '';
         }
@@ -1904,7 +1920,21 @@ class Bootflow_Shop_Assist_Admin {
                             for (var e = 0; e < existH.length; e++) { if (existH[e].value == p.id) return; }
                             var tag = document.createElement('span');
                             tag.className = 'msai-sq-cat-tag';
-                            tag.innerHTML = p.title + '<input type="hidden" name="sq_search_products[' + idx + '][]" value="' + p.id + '" data-title="' + p.title.replace(/"/g, '&quot;') + '"><span class="msai-sq-cat-remove" onclick="this.parentElement.remove()">✕</span>';
+                            tag.appendChild(document.createTextNode(p.title));
+
+                            var hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = 'sq_search_products[' + idx + '][]';
+                            hidden.value = p.id;
+                            hidden.setAttribute('data-title', p.title);
+                            tag.appendChild(hidden);
+
+                            var removeBtn = document.createElement('span');
+                            removeBtn.className = 'msai-sq-cat-remove';
+                            removeBtn.textContent = '✕';
+                            removeBtn.onclick = function() { tag.remove(); };
+                            tag.appendChild(removeBtn);
+
                             prodList.appendChild(tag);
                             results.innerHTML = '';
                             input.value = '';
@@ -1920,11 +1950,11 @@ class Bootflow_Shop_Assist_Admin {
     }
 
     private function render_analytics_dashboard() {
-        echo '<div class="notice notice-info"><p>' . esc_html__('Analytics is available in the PRO add-on only.', 'ai-chatbot-ms') . '</p></div>';
+        echo '<div class="notice notice-info"><p>' . esc_html__('Analytics dashboard is not enabled in this screen.', 'bootflow-shop-assist-for-woocommerce') . '</p></div>';
     }
 
     public function ajax_csv_export() {
-        wp_die(esc_html__('Analytics export is available in the PRO add-on only.', 'ai-chatbot-ms'));
+        wp_die(esc_html__('Analytics export is not enabled.', 'bootflow-shop-assist-for-woocommerce'));
     }
 
     public function maybe_redirect_after_activation() {

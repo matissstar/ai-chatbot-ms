@@ -35,7 +35,7 @@ Bootflow Shop Assist is a lightweight, privacy-focused chatbot for WooCommerce s
 
 == Installation ==
 
-1. Upload the `ai-chatbot-ms` folder to `/wp-content/plugins/`.
+1. Upload the `bootflow-shop-assist-for-woocommerce` folder to `/wp-content/plugins/`.
 2. Activate the plugin through the **Plugins** menu in WordPress.
 3. Go to **Shop Assist** in the admin menu to configure settings.
 4. The chatbot will appear automatically on your store's frontend.

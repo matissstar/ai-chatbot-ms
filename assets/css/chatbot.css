@@ -670,6 +670,16 @@
     width: 100%;
 }
 
+/* Keep breathing room before the next user query after product results */
+.msai-products + .msai-user,
+.msai-load-more + .msai-user {
+    margin-top: 12px;
+}
+
+.msai-user-after-products {
+    margin-top: 12px;
+}
+
 .msai-btn-load-more {
     background: linear-gradient(135deg, var(--msai-primary), var(--msai-primary-hover));
     color: var(--msai-text-on-primary);
